@@ -55,7 +55,7 @@ a{color:inherit;text-decoration:none}
 .lb-art{aspect-ratio:16/10;display:grid;place-items:center;font-size:140px}
 .lb-cap{position:absolute;left:0;right:0;bottom:0;padding:22px 26px;background:linear-gradient(0deg,rgba(0,0,0,.85),transparent);
   font-family:var(--disp);font-size:28px}
-.lb-cap small{display:block;font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.15em;margin-top:4px;text-transform:uppercase}
+.lb-cap small{display:block;font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.15em;margin-top:4px;text-transform:uppercase}.lb-art svg,.tile .art svg{filter:drop-shadow(0 16px 26px rgba(0,0,0,.55))}.ev{display:flex;gap:12px;align-items:baseline;margin-top:10px;font-family:var(--mono);font-size:13px;line-height:1.5}.ev .d{font-family:var(--disp);color:var(--amber);font-size:17px;min-width:104px;letter-spacing:.02em}.ev .x{color:var(--muted)}
 .lb-close{position:absolute;top:18px;right:20px;z-index:210;background:none;border:0;color:#fff;font-size:34px;cursor:pointer;line-height:.7}
 .lb-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:210;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.2);
   color:#fff;width:52px;height:52px;border-radius:50%;font-size:22px;cursor:pointer}
@@ -117,37 +117,84 @@ footer .muted{color:var(--muted);font-size:13px;line-height:1.8}
 
 <script>
 (function(){
-  var shots=[
-    {e:'🍔',t:'The Classic Smash',s:'Double patty · aged cheddar',g:'linear-gradient(135deg,#7a3e12,#20120a)',big:true},
-    {e:'🔥',t:'Sulla piastra',s:'171°C · reazione di Maillard',g:'linear-gradient(135deg,#b5480f,#2a1206)'},
-    {e:'🧀',t:'Cheese pull',s:'Cheddar fuso',g:'linear-gradient(135deg,#caa23a,#3a2a08)'},
-    {e:'🍟',t:'Hand-cut fries',s:'Beef dripping · rosmarino',g:'linear-gradient(135deg,#c9922f,#2e1e08)'},
-    {e:'🥓',t:'Bacon inferno',s:'Affumicato · jalapeño',g:'linear-gradient(135deg,#8a2a1c,#20100a)'},
-    {e:'🍺',t:'Cold one',s:'Alla spina',g:'linear-gradient(135deg,#b98a2e,#241606)'},
-    {e:'🌶️',t:'Extra piccante',s:'Per i coraggiosi',g:'linear-gradient(135deg,#a3311f,#1c0d08)'},
-    {e:'🥑',t:'Green machine',s:'Plant patty · avocado',g:'linear-gradient(135deg,#4e7d34,#12200f)'}
-  ];
-  var grid=document.getElementById('grid');
-  grid.innerHTML=shots.map(function(s,i){
-    return '<div class="tile'+(s.big?' big':'')+'" data-i="'+i+'" style="background:'+s.g+'">'+
-      '<div class="tag">OMAHA · N°'+String(i+1).padStart(2,'0')+'</div>'+
-      '<div class="art">'+s.e+'</div>'+
-      '<div class="cap">'+s.t+'</div></div>';
-  }).join('');
+  function wrap(s){return '<svg viewBox="0 0 240 210" width="74%" height="90%" preserveAspectRatio="xMidYMid meet" aria-hidden="true">'+s+'</svg>';}
+  function burger(o){o=o||{};var cx=120,n=o.patties||1,s='';
+    var parts=[];
+    if(o.lettuce)parts.push(['lettuce',172,12,'#5aa03a',6]);
+    for(var i=0;i<n;i++){parts.push(['cheese',170,12,(o.cheese||'#f2b32a'),4]);parts.push(['patty',158,20,'#5a3016',8]);}
+    if(o.bacon)parts.push(['bacon',150,10,'#9c3320',4]);
+    s+='<path d="M52 168 q0 22 68 22 q68 0 68 -22 v-6 h-136 z" fill="#c8894a"/>';
+    s+='<rect x="46" y="158" width="148" height="10" rx="5" fill="#b8823c"/>';
+    var y=158,rev=parts.slice().reverse();
+    rev.forEach(function(p){var t=p[0],w=p[1],hh=p[2],fill=p[3],rx=p[4],topy=y-hh;
+      s+='<rect x="'+(cx-w/2)+'" y="'+topy+'" width="'+w+'" height="'+hh+'" rx="'+rx+'" fill="'+fill+'"/>';
+      if(t==='cheese'&&o.drip){s+='<path d="M'+(cx-w/2+8)+' '+(topy+hh-1)+' l10 9 l10 -7 l10 9 l10 -7 l10 9 l10 -7 v-9 h-70 z" fill="'+fill+'"/>';}
+      y=topy-2;});
+    var by=y+2;
+    s+='<path d="M48 '+by+' Q120 '+(by-56)+' 192 '+by+' Z" fill="#dd9c4e"/>';
+    s+='<rect x="48" y="'+(by-2)+'" width="144" height="6" rx="3" fill="#cf9142"/>';
+    s+='<g fill="#f4e3c2" opacity="0.9"><ellipse cx="98" cy="'+(by-16)+'" rx="3" ry="2"/><ellipse cx="118" cy="'+(by-26)+'" rx="3" ry="2"/><ellipse cx="138" cy="'+(by-16)+'" rx="3" ry="2"/><ellipse cx="108" cy="'+(by-8)+'" rx="3" ry="2"/><ellipse cx="128" cy="'+(by-8)+'" rx="3" ry="2"/></g>';
+    return wrap(s);}
+  function fries(){return wrap('<g fill="#e7b23a" stroke="#c9922f" stroke-width="1">'
+    +'<rect x="98" y="42" width="12" height="118" rx="4"/><rect x="114" y="32" width="12" height="128" rx="4"/>'
+    +'<rect x="130" y="46" width="12" height="116" rx="4"/>'
+    +'<rect x="84" y="58" width="12" height="104" rx="4" transform="rotate(-9 90 100)"/>'
+    +'<rect x="144" y="56" width="12" height="106" rx="4" transform="rotate(9 150 100)"/></g>'
+    +'<path d="M74 118 h92 l-11 78 h-70 z" fill="#c0392b"/><path d="M74 118 h92 l-3 18 h-86 z" fill="#e05141"/>'
+    +'<rect x="106" y="128" width="28" height="42" rx="3" fill="#f7ecd6" opacity="0.92"/>'
+    +'<text x="120" y="156" font-family="Oswald,sans-serif" font-size="20" font-weight="700" fill="#c0392b" text-anchor="middle">O</text>');}
+  function beer(){return wrap('<rect x="82" y="56" width="74" height="128" rx="12" fill="#2f2410"/>'
+    +'<rect x="88" y="78" width="62" height="100" rx="8" fill="#e8a12a"/><rect x="88" y="64" width="62" height="20" rx="8" fill="#f7ecd6"/>'
+    +'<ellipse cx="102" cy="68" rx="9" ry="7" fill="#fff"/><ellipse cx="122" cy="63" rx="10" ry="8" fill="#fff"/><ellipse cx="142" cy="70" rx="8" ry="6" fill="#fff"/>'
+    +'<path d="M156 86 q30 4 30 32 q0 28 -30 32" fill="none" stroke="#2f2410" stroke-width="12"/>'
+    +'<g fill="#fff" opacity="0.45"><circle cx="106" cy="150" r="3"/><circle cx="124" cy="128" r="2.5"/><circle cx="134" cy="160" r="3"/><circle cx="116" cy="168" r="2"/></g>');}
+  function fire(){return wrap('<rect x="40" y="152" width="160" height="14" rx="4" fill="#1c1c1c"/>'
+    +'<ellipse cx="120" cy="152" rx="48" ry="14" fill="#2a1409"/><ellipse cx="120" cy="147" rx="48" ry="14" fill="#5a3016"/>'
+    +'<ellipse cx="120" cy="145" rx="40" ry="10" fill="#6b3a1a"/>'
+    +'<path d="M96 148 q-10 -32 6 -50 q-3 22 11 26 q6 -12 2 -24 q18 16 10 42 q-5 14 -20 14z" fill="#ff7a2e"/>'
+    +'<path d="M130 148 q-8 -26 6 -42 q-1 18 10 22 q4 -10 2 -20 q15 14 9 38 q-4 12 -20 12z" fill="#f2a64b"/>'
+    +'<path d="M112 148 q-4 -16 3 -26 q0 12 7 14 q2 -6 1 -12 q9 10 5 26 q-3 8 -12 8z" fill="#ffd98a"/>'
+    +'<g fill="#ffd98a"><circle cx="150" cy="120" r="2"/><circle cx="90" cy="112" r="2"/><circle cx="132" cy="98" r="1.6"/><circle cx="104" cy="96" r="1.4"/></g>');}
+  function events(){var s='<rect x="60" y="54" width="120" height="112" rx="14" fill="#15151c" stroke="#F2A64B" stroke-width="2"/>'
+    +'<path d="M60 74 v-6 a14 14 0 0 1 14 -14 h92 a14 14 0 0 1 14 14 v6 z" fill="#F2A64B"/>'
+    +'<rect x="80" y="44" width="8" height="22" rx="4" fill="#c9821f"/><rect x="152" y="44" width="8" height="22" rx="4" fill="#c9821f"/>';
+    for(var r=0;r<4;r++)for(var c=0;c<5;c++){var x=76+c*22,y=90+r*20,sun=(c===4),hi=(c===4&&(r===1||r===3));
+      s+=hi?'<circle cx="'+x+'" cy="'+y+'" r="8" fill="#F2A64B"/>':'<circle cx="'+x+'" cy="'+y+'" r="4" fill="'+(sun?'#7a5a2a':'#45454e')+'"/>';}
+    return wrap(s);}
+  function art(sh){return sh.type==='burger'?burger(sh.o):sh.type==='fries'?fries():sh.type==='beer'?beer():sh.type==='fire'?fire():sh.type==='events'?events():'';}
 
-  var lb=document.getElementById('lb'),art=document.getElementById('lbArt'),cap=document.getElementById('lbCap'),cur=0;
-  function open(i){cur=(i+shots.length)%shots.length;var s=shots[cur];
-    art.style.background=s.g;art.textContent=s.e;cap.innerHTML=s.t+'<small>'+s.s+'</small>';
-    lb.classList.add('open');lb.setAttribute('aria-hidden','false');}
+  var S=[
+    {type:'burger',o:{cheese:'#f2b32a',lettuce:true},t:'The Classic Smash',s:'Double patty · aged cheddar',g:'linear-gradient(135deg,#7a3e12,#180d06)',big:true},
+    {type:'fire',t:'Sulla piastra',s:'171°C · reazione di Maillard',g:'linear-gradient(135deg,#b5480f,#201006)'},
+    {type:'burger',o:{cheese:'#ffcf4d',drip:true},t:'Cheese pull',s:'Cheddar fuso a filo',g:'linear-gradient(135deg,#caa23a,#241806)'},
+    {type:'fries',t:'Hand-cut fries',s:'Beef dripping · rosmarino',g:'linear-gradient(135deg,#c9922f,#201406)'},
+    {type:'burger',o:{cheese:'#e0902a',bacon:true},t:'Bacon Inferno',s:'Affumicato · jalapeño',g:'linear-gradient(135deg,#8a2a1c,#180b08)'},
+    {type:'beer',t:'Cold one',s:'Alla spina, corona perfetta',g:'linear-gradient(135deg,#b98a2e,#1c1206)'},
+    {type:'events',t:'Eventi · le domeniche OMAHA',s:'2ª e 4ª domenica del mese',g:'linear-gradient(135deg,#3a2a4a,#140f1e)',big:true,
+      detail:[['2ª DOMENICA','Smash Sunday','doppio smash + birra a prezzo speciale, dalle 12 a fine scorte.'],
+              ['4ª DOMENICA','Maya Fire Night','cottura su fuoco vivo nel cortile, edizione limitata e musica dal vivo.']]},
+    {type:'burger',o:{cheese:'#8fce5a',lettuce:true},t:'Green Machine',s:'Plant patty · avocado',g:'linear-gradient(135deg,#3e6b2e,#121a0e)'},
+    {type:'burger',o:{cheese:'#f2b32a',patties:3},t:'The Maillard',s:'Triplo · dry-aged 35 giorni',g:'linear-gradient(135deg,#6a3410,#170c06)'}
+  ];
+
+  var grid=document.getElementById('grid');
+  grid.innerHTML=S.map(function(sh,i){return '<div class="tile'+(sh.big?' big':'')+'" data-i="'+i+'" style="background:'+sh.g+'">'
+    +'<div class="tag">OMAHA · N°'+String(i+1).padStart(2,'0')+'</div><div class="art">'+art(sh)+'</div><div class="cap">'+sh.t+'</div></div>';}).join('');
+
+  var lb=document.getElementById('lb'),lbArt=document.getElementById('lbArt'),cap=document.getElementById('lbCap'),cur=0;
+  function open(i){cur=(i+S.length)%S.length;var sh=S[cur];
+    lbArt.style.background=sh.g;lbArt.innerHTML=art(sh);
+    var html=sh.t+'<small>'+sh.s+'</small>';
+    if(sh.detail)html+=sh.detail.map(function(d){return '<div class="ev"><span class="d">'+d[0]+'</span><span class="x"><b style="color:#fff">'+d[1]+'</b> — '+d[2]+'</span></div>';}).join('');
+    cap.innerHTML=html;lb.classList.add('open');lb.setAttribute('aria-hidden','false');}
   function close(){lb.classList.remove('open');lb.setAttribute('aria-hidden','true');}
   grid.addEventListener('click',function(e){var t=e.target.closest('.tile');if(t)open(+t.dataset.i);});
   document.getElementById('lbClose').addEventListener('click',close);
   document.getElementById('lbPrev').addEventListener('click',function(){open(cur-1);});
   document.getElementById('lbNext').addEventListener('click',function(){open(cur+1);});
   lb.addEventListener('click',function(e){if(e.target===lb)close();});
-  document.addEventListener('keydown',function(e){if(!lb.classList.contains('open'))return;
-    if(e.key==='Escape')close();if(e.key==='ArrowLeft')open(cur-1);if(e.key==='ArrowRight')open(cur+1);});
-  document.querySelectorAll('a[href^="#"]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();var h=a.getAttribute('href');if(h.length>1){var el=document.querySelector(h);if(el)el.scrollIntoView({behavior:'smooth'});}});});
+  document.addEventListener('keydown',function(e){if(!lb.classList.contains('open'))return;if(e.key==='Escape')close();if(e.key==='ArrowLeft')open(cur-1);if(e.key==='ArrowRight')open(cur+1);});
+  document.querySelectorAll('a[href^="#"]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();var hh=a.getAttribute('href');if(hh.length>1){var el=document.querySelector(hh);if(el)el.scrollIntoView({behavior:'smooth'});}});});
 })();
 </script>
 </body>
