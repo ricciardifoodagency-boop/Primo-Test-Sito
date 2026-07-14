@@ -564,6 +564,16 @@ render();
     add({name:'Custom Smash',sub:sel.join(' · '),price:price});
   });
 
+  // In-page anchor links: scroll smoothly via JS instead of navigating the URL
+  // hash (which reloads the whole document inside the Artifact iframe).
+  document.querySelectorAll('a[href^="#"]').forEach(function(a){
+    a.addEventListener('click',function(e){
+      e.preventDefault();
+      var href=a.getAttribute('href');
+      if(href.length>1){var el=document.querySelector(href); if(el) el.scrollIntoView({behavior:'smooth'});}
+    });
+  });
+
   updateCount();
 })();
 </script>
