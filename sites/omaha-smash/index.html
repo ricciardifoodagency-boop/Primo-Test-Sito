@@ -385,7 +385,9 @@ const ease=t=>1-Math.pow(1-t,2);
 const storyEl=document.getElementById('story');
 const storyBig=storyEl?storyEl.querySelector('.big'):null;
 // scroll-spy: map nav links to their target sections
-const spy=[...document.querySelectorAll('#nav .links a')].map(a=>({a,sec:document.querySelector(a.getAttribute('href'))})).filter(o=>o.sec);
+const spy=[...document.querySelectorAll('#nav .links a')]
+  .filter(a=>{var h=a.getAttribute('href')||'';return h.charAt(0)==='#'&&h.length>1;})
+  .map(a=>({a,sec:document.querySelector(a.getAttribute('href'))})).filter(o=>o.sec);
 
 function onScroll(){
   const st=window.scrollY, dh=document.documentElement.scrollHeight-window.innerHeight;
