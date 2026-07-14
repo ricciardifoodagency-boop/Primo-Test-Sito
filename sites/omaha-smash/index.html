@@ -55,7 +55,8 @@ img,video{display:block;max-width:100%}
   border:1px solid rgba(255,255,255,.25);padding:4px 8px;border-radius:4px;background:rgba(0,0,0,.35)}
 
 /* ---------- SECTION SHELL ---------- */
-.section{position:relative;padding:120px 0}
+.section{position:relative;padding:120px 0;scroll-margin-top:80px}
+.chapter{scroll-margin-top:0}
 .eyebrow{font-size:13px;letter-spacing:.5em;color:var(--amber);margin-bottom:16px}
 .chapno{font-family:var(--disp);font-weight:700;color:var(--amber)}
 
@@ -115,8 +116,36 @@ img,video{display:block;max-width:100%}
 .builder{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center}
 .stack{position:relative;background:radial-gradient(70% 70% at 50% 40%,#1b1206,#08080a);
   border:1px solid rgba(255,255,255,.08);border-radius:18px;min-height:420px;display:grid;place-items:center;padding:30px}
-.stack .layers{display:flex;flex-direction:column-reverse;align-items:center;gap:4px}
-.stack .layer{height:26px;border-radius:40px;box-shadow:0 6px 14px -6px rgba(0,0,0,.7);transition:.25s}
+.stack .layers{display:flex;flex-direction:column;align-items:center;gap:3px;filter:drop-shadow(0 24px 30px rgba(0,0,0,.6))}
+.stack .layer{position:relative;box-shadow:inset 0 2px 3px rgba(255,255,255,.18),inset 0 -3px 6px rgba(0,0,0,.35);animation:drop .35s cubic-bezier(.2,.9,.2,1)}
+@keyframes drop{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
+.layer.bun-top{width:210px;height:64px;border-radius:105px 105px 22px 22px;
+  background:linear-gradient(180deg,#e2a95c 0%,#c07f34 70%,#a86a26 100%)}
+.layer.bun-top::after{content:"";position:absolute;inset:0;border-radius:inherit;
+  background-image:radial-gradient(circle,#f4e3c2 2.6px,transparent 3px);background-size:26px 20px;
+  background-position:14px 16px;opacity:.9;-webkit-mask:linear-gradient(180deg,#000 30%,transparent 75%)}
+.layer.bun-bottom{width:196px;height:34px;border-radius:20px 20px 60px 60px;background:linear-gradient(180deg,#c8894a,#9c6224)}
+.layer.patty{width:216px;height:26px;border-radius:14px;background:linear-gradient(180deg,#5a3016,#3c1e0d);
+  box-shadow:inset 0 2px 2px rgba(255,150,80,.25),inset 0 -3px 6px rgba(0,0,0,.5)}
+.layer.cheese{width:230px;height:16px;border-radius:6px 6px 12px 12px;background:linear-gradient(180deg,#ffcf4d,#f2a922);
+  clip-path:polygon(0 0,100% 0,100% 55%,92% 100%,84% 55%,72% 100%,62% 55%,50% 100%,40% 55%,28% 100%,18% 55%,8% 100%,0 55%)}
+.layer.lettuce{width:224px;height:14px;background:linear-gradient(180deg,#7bbf4e,#4e8a30);
+  border-radius:8px;clip-path:polygon(0 0,100% 0,100% 40%,90% 100%,80% 40%,68% 100%,55% 40%,42% 100%,30% 40%,18% 100%,8% 40%,0 100%)}
+.layer.bacon{width:206px;height:12px;border-radius:6px;background:repeating-linear-gradient(90deg,#8a2a1c 0 14px,#c05a3a 14px 26px)}
+.layer.onion{width:200px;height:10px;border-radius:20px;background:linear-gradient(180deg,#caa27a,#8f6a45)}
+.layer.avocado{width:198px;height:12px;border-radius:20px;background:linear-gradient(180deg,#95c66b,#5f9440)}
+
+/* ---------- FLAMES (THE SEAR) ---------- */
+.flames{position:absolute;left:0;right:0;bottom:0;height:42%;z-index:3;pointer-events:none;
+  filter:blur(2px) contrast(1.1);mix-blend-mode:screen}
+.flame{position:absolute;bottom:-40px;width:120px;height:260px;border-radius:50% 50% 42% 42%;
+  background:radial-gradient(50% 60% at 50% 75%,#ffd98a,#ff7a2e 45%,#c22a06 70%,transparent 82%);
+  transform-origin:50% 100%;animation:flick 1.1s ease-in-out infinite}
+@keyframes flick{0%,100%{transform:scaleY(.85) scaleX(1)}50%{transform:scaleY(1.12) scaleX(.9)}}
+
+/* ---------- STORY anim ---------- */
+#story .stage{overflow:hidden}
+#story .big{will-change:transform,opacity}
 .opts{display:flex;flex-direction:column;gap:26px}
 .opt .lab{font-size:13px;letter-spacing:.3em;color:var(--muted);margin-bottom:12px}
 .chips{display:flex;gap:10px;flex-wrap:wrap}
@@ -283,6 +312,37 @@ footer .muted{color:var(--muted);font-size:13px;line-height:1.8}
   </div>
 </section>
 
+<!-- 05 THE SEAR (pinned + flames + scrubbed counter) -->
+<section class="chapter" id="sear" data-chapter data-from="20" data-to="176">
+  <div class="track">
+    <div class="stage">
+      <video class="bgvideo" src="assets/video/bg-sear.mp4" autoplay muted loop playsinline></video>
+      <span class="ph">PLACEHOLDER — clip IA</span>
+      <div class="scrim"></div>
+      <div class="flames">
+        <div class="flame" style="left:12%;animation-delay:-.2s"></div>
+        <div class="flame" style="left:34%;height:320px;animation-delay:-.7s"></div>
+        <div class="flame" style="left:56%;height:220px;animation-delay:-.4s"></div>
+        <div class="flame" style="left:76%;height:300px;animation-delay:-.9s"></div>
+      </div>
+      <div class="hud">
+        <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+        <div class="topline"><span>OMAHA <b>/ THE FIRE</b></span><span class="rec">REC 00:00:00:00</span></div>
+        <div class="block">
+          <div class="eyebrow">FINISH</div>
+          <div class="title"><span class="s">//</span> 05. THE SEAR</div>
+          <div class="divider"></div>
+          <div class="specs">
+            <div><span class="k">FLAME</span>OPEN FIRE · 30 SEC</div>
+            <div><span class="k">FINISH</span>SMOKED · CHARRED EDGE</div>
+          </div>
+        </div>
+        <div class="temp"><div class="lab">CORE TEMP</div><div class="val"><span class="counter">20</span><span class="deg">°C</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- STORY -->
 <section class="section" id="story">
   <div class="wrap"><div class="stage">
@@ -334,10 +394,18 @@ const chapters=[...document.querySelectorAll('[data-chapter]')].map(sec=>({
 }));
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const ease=t=>1-Math.pow(1-t,2);
+const storyEl=document.getElementById('story');
+const storyBig=storyEl?storyEl.querySelector('.big'):null;
 
 function onScroll(){
   const st=window.scrollY, dh=document.documentElement.scrollHeight-window.innerHeight;
   prog.style.width=(st/dh*100)+'%';
+  if(storyBig){
+    const r=storyEl.getBoundingClientRect(), vh=window.innerHeight;
+    const p=clamp((vh-r.top)/(vh+r.height),0,1);
+    storyBig.style.transform='translateY('+((p-.5)*-90)+'px)';
+    storyBig.style.letterSpacing=(p*2).toFixed(2)+'px';
+  }
   for(const c of chapters){
     const r=c.sec.getBoundingClientRect();
     const total=c.sec.offsetHeight-window.innerHeight;
@@ -358,24 +426,23 @@ window.addEventListener('resize',onScroll); onScroll();
 /* ---- Build Your Smash configurator ---- */
 const BASE=12;
 const stack=document.getElementById('stack'), totalEl=document.getElementById('total');
-const cols={bun:'#c98a3d',patty:'#5a3016',cheese:'#f2b33a',bacon:'#a83b2a',topping:'#3f7d3a'};
+const EXTRA_CLASS={'BACON':'bacon','JALAPEÑO':'lettuce','ONION JAM':'onion','AVOCADO':'avocado'};
 function render(){
   let total=BASE, n=1, extras=[];
   document.querySelectorAll('.chips').forEach(g=>{
     g.querySelectorAll('.chip.on').forEach(ch=>{
       total+=+ch.dataset.price;
       if(g.dataset.group==='patty') n=+ch.dataset.n;
-      if(g.dataset.group==='extra') extras.push(ch.textContent);
+      if(g.dataset.group==='extra') extras.push(ch.textContent.trim());
     });
   });
   totalEl.textContent=total;
-  // build visual stack: top bun, extras, cheese+patty xN, bottom bun
-  const L=[];
-  L.push(['bun',150,20]);
-  extras.forEach((_,i)=>L.push(['topping',110,10]));
-  for(let i=0;i<n;i++){L.push(['cheese',150,10]);L.push(['patty',150,22]);}
-  L.push(['bun',150,26]);
-  stack.innerHTML=L.map(([t,w,h])=>`<div class="layer" style="width:${w}px;height:${h}px;background:${cols[t]||cols.patty}"></div>`).join('');
+  // build visual stack top -> bottom: bun top, extras, (cheese+patty)xN, bun bottom
+  const L=['bun-top'];
+  extras.forEach(e=>L.push(EXTRA_CLASS[e]||'lettuce'));
+  for(let i=0;i<n;i++){L.push('cheese');L.push('patty');}
+  L.push('bun-bottom');
+  stack.innerHTML=L.map(c=>`<div class="layer ${c}"></div>`).join('');
 }
 document.querySelectorAll('.chips').forEach(g=>{
   g.addEventListener('click',e=>{
