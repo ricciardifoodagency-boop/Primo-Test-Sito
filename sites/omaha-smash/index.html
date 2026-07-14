@@ -43,6 +43,7 @@ img,video{display:block;max-width:100%}
 .scrim{position:absolute;inset:0;z-index:1;
   background:radial-gradient(60% 60% at 50% 60%,transparent 0%,rgba(8,8,10,.55) 70%,var(--ink) 100%)}
 .hero .inner{position:relative;z-index:2}
+.hero-fade{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,transparent 68%,var(--ink))}
 .hero .kick{font-size:14px;letter-spacing:.55em;color:var(--amber);margin-bottom:22px}
 .hero h1{font-size:clamp(56px,11vw,150px);text-shadow:0 8px 60px rgba(0,0,0,.6)}
 .hero h1 .thin{display:block;font-weight:500;color:var(--muted);font-size:.32em;letter-spacing:.5em;margin-top:14px}
@@ -216,7 +217,7 @@ footer .muted{color:var(--muted);font-size:13px;line-height:1.8}
 <nav id="nav">
   <div class="brand">OMAHA<b>.</b></div>
   <div class="links">
-    <a href="#lineup">Line-up</a><a href="#cut">The Cut</a><a href="#build">Build</a>
+    <a href="#lineup">Line-up</a><a href="#build">Build</a>
     <a href="#story">Story</a><a href="#menu">Menu</a>
   </div>
   <a class="cta" href="#menu">ORDER</a>
@@ -224,13 +225,9 @@ footer .muted{color:var(--muted);font-size:13px;line-height:1.8}
 
 <!-- HERO -->
 <header class="hero" id="top">
-  <video class="bgvideo" src="assets/video/bg-hero.mp4" autoplay muted loop playsinline></video>
-  <span class="ph">PLACEHOLDER — clip IA</span>
-  <div class="scrim"></div>
-  <div class="inner">
-    <div class="kick">SMASH SERIES · EST. 2026</div>
-    <h1>The Sear<span class="thin">one patty. uncompromised.</span></h1>
-  </div>
+  <video class="bgvideo" src="assets/video/hero-sequence.mp4" autoplay muted loop playsinline></video>
+  <span class="ph">VIDEO SEGNAPOSTO — qui andrà la clip IA (capitoli + temperature integrati)</span>
+  <div class="hero-fade"></div>
   <div class="scroll-hint">SCROLL<span></span></div>
 </header>
 
@@ -255,57 +252,6 @@ footer .muted{color:var(--muted);font-size:13px;line-height:1.8}
   </div>
 </section>
 
-<!-- 02 THE CUT (pinned + scrubbed counter) -->
-<section class="chapter" id="cut" data-chapter data-from="18" data-to="171">
-  <div class="track">
-    <div class="stage">
-      <video class="bgvideo" src="assets/video/bg-cut.mp4" autoplay muted loop playsinline></video>
-      <span class="ph">PLACEHOLDER — clip IA</span>
-      <div class="scrim"></div>
-      <div class="hud">
-        <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
-        <div class="topline"><span>OMAHA <b>/ SPEC SHEET</b></span><span class="rec">REC 00:00:00:00</span></div>
-        <div class="block">
-          <div class="eyebrow">SPECIFICATIONS</div>
-          <div class="title"><span class="s">//</span> 02. THE CUT</div>
-          <div class="divider"></div>
-          <div class="specs">
-            <div><span class="k">ORIGIN</span>DRY-AGED · 35 DAYS</div>
-            <div><span class="k">GRIND</span>COARSE · 4.5MM</div>
-            <div><span class="k">REACTION</span>MAILLARD</div>
-          </div>
-        </div>
-        <div class="temp"><div class="lab">SURFACE TEMP</div><div class="val"><span class="counter">18</span><span class="deg">°C</span></div></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- 03 THE SMASH (pinned + scrubbed counter) -->
-<section class="chapter" id="smash" data-chapter data-from="40" data-to="230">
-  <div class="track">
-    <div class="stage">
-      <video class="bgvideo" src="assets/video/bg-smash.mp4" autoplay muted loop playsinline></video>
-      <span class="ph">PLACEHOLDER — clip IA</span>
-      <div class="scrim"></div>
-      <div class="hud">
-        <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
-        <div class="topline"><span>OMAHA <b>/ THE PRESS</b></span><span class="rec">REC 00:00:00:00</span></div>
-        <div class="block">
-          <div class="eyebrow">TECHNIQUE</div>
-          <div class="title"><span class="s">//</span> 03. THE SMASH</div>
-          <div class="divider"></div>
-          <div class="specs">
-            <div><span class="k">FORCE</span>12 KG · 4 SEC</div>
-            <div><span class="k">CRUST</span>LACY EDGE</div>
-          </div>
-        </div>
-        <div class="temp"><div class="lab">GRIDDLE TEMP</div><div class="val"><span class="counter">40</span><span class="deg">°C</span></div></div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- BUILD YOUR SMASH -->
 <section class="section" id="build">
   <div class="wrap">
@@ -324,37 +270,6 @@ footer .muted{color:var(--muted);font-size:13px;line-height:1.8}
           <div class="chip" data-price="3">BACON</div><div class="chip" data-price="2">JALAPEÑO</div><div class="chip" data-price="2">ONION JAM</div><div class="chip" data-price="3">AVOCADO</div></div></div>
         <div class="total"><span class="t-lab">TOTAL</span><span class="t-val">$<span id="total">12</span></span></div>
         <button class="btn">ADD TO ORDER</button>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- 05 THE SEAR (pinned + flames + scrubbed counter) -->
-<section class="chapter" id="sear" data-chapter data-from="20" data-to="176">
-  <div class="track">
-    <div class="stage">
-      <video class="bgvideo" src="assets/video/bg-sear.mp4" autoplay muted loop playsinline></video>
-      <span class="ph">PLACEHOLDER — clip IA</span>
-      <div class="scrim"></div>
-      <div class="flames">
-        <div class="flame" style="left:12%;animation-delay:-.2s"></div>
-        <div class="flame" style="left:34%;height:320px;animation-delay:-.7s"></div>
-        <div class="flame" style="left:56%;height:220px;animation-delay:-.4s"></div>
-        <div class="flame" style="left:76%;height:300px;animation-delay:-.9s"></div>
-      </div>
-      <div class="hud">
-        <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
-        <div class="topline"><span>OMAHA <b>/ THE FIRE</b></span><span class="rec">REC 00:00:00:00</span></div>
-        <div class="block">
-          <div class="eyebrow">FINISH</div>
-          <div class="title"><span class="s">//</span> 05. THE SEAR</div>
-          <div class="divider"></div>
-          <div class="specs">
-            <div><span class="k">FLAME</span>OPEN FIRE · 30 SEC</div>
-            <div><span class="k">FINISH</span>SMOKED · CHARRED EDGE</div>
-          </div>
-        </div>
-        <div class="temp"><div class="lab">CORE TEMP</div><div class="val"><span class="counter">20</span><span class="deg">°C</span></div></div>
       </div>
     </div>
   </div>
@@ -462,10 +377,14 @@ function render(){
   totalEl.textContent=total;
   // build visual stack top -> bottom: bun top, extras, (cheese+patty)xN, bun bottom
   const L=['bun-top'];
-  extras.forEach(e=>L.push(EXTRA_CLASS[e]||'lettuce'));
-  for(let i=0;i<n;i++){L.push('cheese');L.push('patty');}
+  for(let i=0;i<n;i++){L.push('cheese');L.push('patty');extras.forEach(e=>L.push(EXTRA_CLASS[e]||'lettuce'));}
   L.push('bun-bottom');
   stack.innerHTML=L.map(c=>`<div class="layer ${c}"></div>`).join('');
+  // auto-fit the stack inside its container so tall builds stay fully visible
+  const box=stack.parentElement;
+  stack.style.transform='none';
+  const need=stack.scrollHeight, avail=box.clientHeight-36;
+  if(need>avail) stack.style.transform='scale('+(avail/need).toFixed(3)+')';
 }
 document.querySelectorAll('.chips').forEach(g=>{
   g.addEventListener('click',e=>{
