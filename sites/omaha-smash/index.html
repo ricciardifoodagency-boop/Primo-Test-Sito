@@ -146,6 +146,21 @@ img,video{display:block;max-width:100%}
 /* ---------- STORY anim ---------- */
 #story .stage{overflow:hidden}
 #story .big{will-change:transform,opacity}
+
+/* ---------- POLISH ---------- */
+#filmgrain{position:fixed;inset:0;z-index:95;pointer-events:none;opacity:.045;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");background-size:200px}
+/* readability gradient under HUD on cinematic chapters */
+.chapter .stage::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:linear-gradient(95deg,rgba(0,0,0,.78) 0%,rgba(0,0,0,.32) 42%,transparent 66%),
+             linear-gradient(0deg,rgba(0,0,0,.72),transparent 42%)}
+#nav .links a{position:relative;transition:color .25s}
+#nav .links a.active{color:var(--amber)}
+#nav .links a.active::after{content:"";position:absolute;left:0;right:0;bottom:-6px;height:1px;background:var(--amber)}
+/* hero entrance */
+.hero .kick{animation:fadeUp .9s .1s both}
+.hero h1{animation:fadeUp 1s .28s both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
 .opts{display:flex;flex-direction:column;gap:26px}
 .opt .lab{font-size:13px;letter-spacing:.3em;color:var(--muted);margin-bottom:12px}
 .chips{display:flex;gap:10px;flex-wrap:wrap}
@@ -190,11 +205,13 @@ footer .muted{color:var(--muted);font-size:13px;line-height:1.8}
 .reveal{opacity:0;transform:translateY(26px);transition:opacity .8s cubic-bezier(.2,.7,.2,1),transform .8s cubic-bezier(.2,.7,.2,1)}
 .reveal.in{opacity:1;transform:none}
 .reveal.d1{transition-delay:.08s}.reveal.d2{transition-delay:.16s}.reveal.d3{transition-delay:.24s}
-@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}.scroll-hint span{animation:none}}
+@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}
+  .scroll-hint span,.hero .kick,.hero h1,.flame,.layer{animation:none}}
 </style>
 </head>
 <body>
 
+<div id="filmgrain"></div>
 <div id="progress"></div>
 <nav id="nav">
   <div class="brand">OMAHA<b>.</b></div>
@@ -396,10 +413,16 @@ const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const ease=t=>1-Math.pow(1-t,2);
 const storyEl=document.getElementById('story');
 const storyBig=storyEl?storyEl.querySelector('.big'):null;
+// scroll-spy: map nav links to their target sections
+const spy=[...document.querySelectorAll('#nav .links a')].map(a=>({a,sec:document.querySelector(a.getAttribute('href'))})).filter(o=>o.sec);
 
 function onScroll(){
   const st=window.scrollY, dh=document.documentElement.scrollHeight-window.innerHeight;
   prog.style.width=(st/dh*100)+'%';
+  // active nav link = last section whose top passed the viewport's upper third
+  let active=spy[0];
+  for(const o of spy){ if(o.sec.getBoundingClientRect().top<=window.innerHeight*0.34) active=o; }
+  spy.forEach(o=>o.a.classList.toggle('active', o===active));
   if(storyBig){
     const r=storyEl.getBoundingClientRect(), vh=window.innerHeight;
     const p=clamp((vh-r.top)/(vh+r.height),0,1);
