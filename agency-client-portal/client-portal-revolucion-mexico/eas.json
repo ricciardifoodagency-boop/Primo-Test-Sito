@@ -17,13 +17,13 @@
         "buildType": "apk"
       },
       "env": {
-        "BACKEND_URL": "https://SOSTITUISCI-con-il-tuo-backend.esempio.it"
+        "BACKEND_URL": "https://client-portal-backend-kh1p.onrender.com"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "BACKEND_URL": "https://SOSTITUISCI-con-il-tuo-backend.esempio.it"
+        "BACKEND_URL": "https://client-portal-backend-kh1p.onrender.com"
       }
     }
   },
