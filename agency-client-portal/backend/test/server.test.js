@@ -52,8 +52,17 @@ test("buildKpiPayload trasforma l'insight Meta nel payload per l'app", () => {
   assert.equal(payload.spend, 2095.31);
   assert.equal(payload.impressions, 155185);
   assert.equal(payload.results, 48);
+  // Costo per risultato = 2095.31 / 48 ≈ 43.65
+  assert.equal(Math.round(payload.costPerResult * 100) / 100, 43.65);
   assert.equal(payload.periodo, "ultimi 30 giorni");
   assert.ok(typeof payload.aggiornatoIl === "string");
+});
+
+test("buildKpiPayload: costPerResult è null quando non ci sono risultati", () => {
+  const insights = { spend: "100", impressions: "5000", actions: [] };
+  const payload = buildKpiPayload("x", { displayName: "X" }, insights);
+  assert.equal(payload.results, 0);
+  assert.equal(payload.costPerResult, null);
 });
 
 // --- Integration test HTTP: health, auth, 404, token mancante ------------------

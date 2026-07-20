@@ -125,7 +125,13 @@ export default function DashboardScreen() {
                 <KpiCard label="Spesa" value={formatEuro(kpi?.spend ?? 0)} />
                 <KpiCard label="Risultati" value={formatInt(kpi?.results ?? 0)} />
               </View>
-              <KpiCard label="Impression" value={formatInt(kpi?.impressions ?? 0)} />
+              <View style={styles.grid}>
+                <KpiCard
+                  label="Costo per risultato"
+                  value={kpi?.costPerResult != null ? formatEuro(kpi.costPerResult) : '—'}
+                />
+                <KpiCard label="Impression" value={formatInt(kpi?.impressions ?? 0)} />
+              </View>
 
               {kpi?.aggiornatoIl && (
                 <ThemedText

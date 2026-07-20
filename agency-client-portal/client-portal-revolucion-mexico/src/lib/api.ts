@@ -20,6 +20,7 @@ export type Kpi = {
   spend: number;
   impressions: number;
   results: number;
+  costPerResult: number | null;
   periodo: string;
   aggiornatoIl: string;
 };

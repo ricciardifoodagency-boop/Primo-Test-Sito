@@ -73,12 +73,17 @@ export function extractResults(actions) {
 
 // Trasforma la risposta grezza di Meta nel payload compatto che l'app mobile consuma.
 export function buildKpiPayload(clientId, client, insights) {
+  const spend = insights ? Number(insights.spend) : 0;
+  const results = extractResults(insights?.actions);
   return {
     clientId,
     displayName: client.displayName,
-    spend: insights ? Number(insights.spend) : 0,
+    spend,
     impressions: insights ? Number(insights.impressions) : 0,
-    results: extractResults(insights?.actions),
+    results,
+    // Costo per risultato (CPA): speso / risultati. null quando non ci sono
+    // risultati, per evitare divisioni per zero e mostrare "—" nell'app.
+    costPerResult: results > 0 ? spend / results : null,
     periodo: "ultimi 30 giorni",
     aggiornatoIl: new Date().toISOString(),
   };
