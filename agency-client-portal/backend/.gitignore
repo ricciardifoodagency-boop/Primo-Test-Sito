@@ -1,0 +1,11 @@
+# Dipendenze
+node_modules/
+
+# Secret: mai committare i token reali. Solo .env.example va in git.
+.env
+.env.local
+.env.*.local
+
+# Log
+*.log
+npm-debug.log*
