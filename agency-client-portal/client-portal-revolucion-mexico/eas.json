@@ -1,0 +1,33 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "BACKEND_URL": "http://localhost:3000"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "BACKEND_URL": "https://SOSTITUISCI-con-il-tuo-backend.esempio.it"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "BACKEND_URL": "https://SOSTITUISCI-con-il-tuo-backend.esempio.it"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

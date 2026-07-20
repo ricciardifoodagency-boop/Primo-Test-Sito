@@ -1,0 +1,22 @@
+# Blueprint Render per il backend del portale clienti.
+# Su Render: New + > Blueprint, seleziona questo repo. Imposta la "Root Directory"
+# su agency-client-portal/backend (oppure sposta questo file nella root del repo).
+# I valori con `sync: false` NON stanno nel repo: li imposti nella dashboard di Render.
+services:
+  - type: web
+    name: client-portal-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 3000
+      # Chiave condivisa con l'app mobile (header x-api-key).
+      - key: PORTAL_API_KEY
+        sync: false
+      # Token Meta Ads (permesso ads_read) per l'account Ricciardi Food Agency.
+      - key: META_TOKEN_RICCIARDI_FOOD_AGENCY
+        sync: false
