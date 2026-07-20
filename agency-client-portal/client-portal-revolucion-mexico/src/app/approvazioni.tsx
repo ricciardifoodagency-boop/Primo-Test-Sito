@@ -20,9 +20,9 @@ type Creativita = {
 };
 
 const INIZIALI: Creativita[] = [
-  { id: 'c1', titolo: 'Reel — Taco Tuesday', formato: 'Reel 9:16', pianificata: 'Mar 22 lug', stato: 'in_attesa' },
+  { id: 'c1', titolo: 'Reel — Piatto della settimana', formato: 'Reel 9:16', pianificata: 'Mar 22 lug', stato: 'in_attesa' },
   { id: 'c2', titolo: 'Carosello — Nuovo menù estivo', formato: 'Carosello', pianificata: 'Gio 24 lug', stato: 'in_attesa' },
-  { id: 'c3', titolo: 'Storia — Aperitivo messicano', formato: 'Story 9:16', pianificata: 'Ven 25 lug', stato: 'in_attesa' },
+  { id: 'c3', titolo: 'Storia — Offerta aperitivo', formato: 'Story 9:16', pianificata: 'Ven 25 lug', stato: 'in_attesa' },
 ];
 
 const STATO_LABEL: Record<Stato, string> = {
