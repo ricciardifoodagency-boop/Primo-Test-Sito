@@ -13,6 +13,7 @@
     },
     "preview": {
       "distribution": "internal",
+      "environment": "preview",
       "android": {
         "buildType": "apk"
       },
@@ -22,6 +23,7 @@
     },
     "production": {
       "autoIncrement": true,
+      "environment": "production",
       "env": {
         "BACKEND_URL": "https://client-portal-backend-kh1p.onrender.com"
       }
