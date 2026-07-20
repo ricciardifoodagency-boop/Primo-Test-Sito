@@ -58,7 +58,7 @@ export function CustomTabList(props: TabListProps) {
       <ThemedView type="backgroundElement" style={styles.innerContainer}>
         <View style={styles.brand}>
           <View style={[styles.brandDot, { backgroundColor: brandColor }]} />
-          <ThemedText type="smallBold">Revolucion Mexico</ThemedText>
+          <ThemedText type="smallBold">Ricciardi Food Agency</ThemedText>
         </View>
         {props.children}
       </ThemedView>

@@ -1,7 +1,7 @@
 {
-  "revolucion-mexico": {
-    "displayName": "Revolucion Mexico Torino",
-    "metaAdAccountId": "1547011439647720",
-    "metaAccessTokenEnvVar": "META_TOKEN_REVOLUCION_MEXICO"
+  "ricciardi-food-agency": {
+    "displayName": "Stefano Ricciardi Food Agency",
+    "metaAdAccountId": "781675410281419",
+    "metaAccessTokenEnvVar": "META_TOKEN_RICCIARDI_FOOD_AGENCY"
   }
 }

@@ -13,7 +13,7 @@ test("extractResults sceglie la conversione con priorità più alta", () => {
     ]),
     7
   );
-  // account a lead (come Revolucion Mexico Torino): niente purchase, prende i lead
+  // account a lead: niente purchase, prende i lead
   assert.equal(
     extractResults([
       { action_type: "landing_page_view", value: "300" },
@@ -30,28 +30,28 @@ test("extractResults sceglie la conversione con priorità più alta", () => {
 
 test("buildKpiPayload trasforma l'insight Meta nel payload per l'app", () => {
   // Fixture con la stessa forma della risposta reale della Marketing API,
-  // numeri allineati ai dati reali di Revolucion Mexico Torino (ultimi 30gg).
+  // numeri allineati ai dati reali di Stefano Ricciardi Food Agency (ultimi 30gg).
   const insights = {
-    spend: "790.67",
-    impressions: "175661",
-    cpm: "4.50",
+    spend: "2095.31",
+    impressions: "155185",
+    cpm: "13.50",
     actions: [
-      { action_type: "landing_page_view", value: "5200" },
-      { action_type: "lead", value: "63" },
+      { action_type: "landing_page_view", value: "4100" },
+      { action_type: "lead", value: "48" },
     ],
   };
 
   const payload = buildKpiPayload(
-    "revolucion-mexico",
-    { displayName: "Revolucion Mexico Torino" },
+    "ricciardi-food-agency",
+    { displayName: "Stefano Ricciardi Food Agency" },
     insights
   );
 
-  assert.equal(payload.clientId, "revolucion-mexico");
-  assert.equal(payload.displayName, "Revolucion Mexico Torino");
-  assert.equal(payload.spend, 790.67);
-  assert.equal(payload.impressions, 175661);
-  assert.equal(payload.results, 63);
+  assert.equal(payload.clientId, "ricciardi-food-agency");
+  assert.equal(payload.displayName, "Stefano Ricciardi Food Agency");
+  assert.equal(payload.spend, 2095.31);
+  assert.equal(payload.impressions, 155185);
+  assert.equal(payload.results, 48);
   assert.equal(payload.periodo, "ultimi 30 giorni");
   assert.ok(typeof payload.aggiornatoIl === "string");
 });
@@ -73,11 +73,11 @@ test("endpoint HTTP end-to-end", async (t) => {
   assert.deepEqual(await health.json(), { status: "ok" });
 
   // senza chiave -> 401
-  const noAuth = await fetch(`${base}/kpi/revolucion-mexico`);
+  const noAuth = await fetch(`${base}/kpi/ricciardi-food-agency`);
   assert.equal(noAuth.status, 401);
 
   // chiave sbagliata -> 401
-  const badAuth = await fetch(`${base}/kpi/revolucion-mexico`, {
+  const badAuth = await fetch(`${base}/kpi/ricciardi-food-agency`, {
     headers: { "x-api-key": "chiave-sbagliata" },
   });
   assert.equal(badAuth.status, 401);
@@ -88,10 +88,17 @@ test("endpoint HTTP end-to-end", async (t) => {
   });
   assert.equal(notFound.status, 404);
 
-  // cliente reale ma senza token Meta in ambiente -> 500 con messaggio chiaro
-  const noToken = await fetch(`${base}/kpi/revolucion-mexico`, {
+  // cliente reale ma senza token Meta in ambiente -> 500 con messaggio chiaro.
+  // Togliamo temporaneamente il token per esercitare il ramo in modo
+  // deterministico, senza dipendere dalla rete verso Meta.
+  const savedToken = process.env.META_TOKEN_RICCIARDI_FOOD_AGENCY;
+  delete process.env.META_TOKEN_RICCIARDI_FOOD_AGENCY;
+  const noToken = await fetch(`${base}/kpi/ricciardi-food-agency`, {
     headers: { "x-api-key": KEY },
   });
+  if (savedToken !== undefined) {
+    process.env.META_TOKEN_RICCIARDI_FOOD_AGENCY = savedToken;
+  }
   assert.equal(noToken.status, 500);
   const body = await noToken.json();
   assert.match(body.error, /Token mancante/);

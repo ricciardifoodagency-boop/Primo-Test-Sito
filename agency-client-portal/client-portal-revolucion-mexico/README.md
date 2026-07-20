@@ -1,11 +1,11 @@
-# Portale cliente — Revolucion Mexico Torino
+# Portale cliente — Stefano Ricciardi Food Agency
 
 App Expo (React Native) del portale cliente. Mostra i KPI Meta Ads del cliente
 leggendoli dal backend (`../backend`), che a sua volta li prende dalla Marketing
 API di Meta. Il token Meta resta SEMPRE solo sul backend, mai nell'app.
 
-Collegata all'account Meta Ads reale **Revolucion Mexico Torino**
-(`act_1547011439647720`) tramite `clientId: "revolucion-mexico"`.
+Collegata all'account Meta Ads reale **Stefano Ricciardi Food Agency**
+(`act_781675410281419`) tramite `clientId: "ricciardi-food-agency"`.
 
 ## Struttura
 
