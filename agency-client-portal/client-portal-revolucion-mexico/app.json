@@ -38,6 +38,17 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "clientId": "ricciardi-food-agency",
+      "backendUrl": "http://localhost:3000",
+      "apiKey": "",
+      "brandColor": "#C1121F",
+      "router": {},
+      "eas": {
+        "projectId": "6d6e2db4-51b7-4c0d-a69e-c2135c8f06f9"
+      }
+    },
+    "owner": "emrakul"
   }
 }
