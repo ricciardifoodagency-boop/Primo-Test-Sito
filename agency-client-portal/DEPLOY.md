@@ -11,13 +11,14 @@ build dell'app.
 L'app mobile deve chiamare un URL `https://…`. Il backend è un'app Node/Express
 standard (Dockerfile incluso).
 
-### Opzione A — Render (con `render.yaml`)
-1. Render → **New + → Blueprint**, seleziona il repo.
-2. Imposta **Root Directory** = `agency-client-portal/backend`.
-3. Nella dashboard, alla voce Environment, inserisci i secret:
+### Opzione A — Render (Blueprint, consigliata)
+Il file `render.yaml` è nella **root del repo**: Render lo legge da solo.
+1. Render → **New + → Blueprint**, seleziona il repo e il branch.
+2. Render mostra il servizio `client-portal-backend` (rootDir già impostata su
+   `agency-client-portal/backend`). Al primo deploy ti chiede i due secret:
    - `PORTAL_API_KEY` = la chiave lunga (la stessa che userà l'app)
-   - `META_TOKEN_RICCIARDI_FOOD_AGENCY` = token Meta `ads_read`
-4. Deploy. L'health check è su `/health`.
+   - `META_TOKEN_RICCIARDI_FOOD_AGENCY` = token Meta System User `ads_read`
+3. **Apply / Deploy**. L'health check è su `/health`.
 
 ### Opzione B — Railway / Fly.io / VPS
 - Build dell'immagine: `docker build -t client-portal-backend agency-client-portal/backend`
