@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { readFile } from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import * as store from "./store.js";
 
@@ -14,6 +16,11 @@ store.initFirestore();
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Versione web dell'app (export statico Expo) servita sotto /app.
+// `extensions: ["html"]` serve /app/notifiche -> notifiche.html, ecc.
+const webDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "public", "app");
+app.use("/app", express.static(webDir, { extensions: ["html"] }));
 
 const PORT = process.env.PORT || 3000;
 // Chiave semplice condivisa con l'app mobile (ogni cliente la riceve nel proprio build,

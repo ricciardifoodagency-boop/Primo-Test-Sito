@@ -9,6 +9,8 @@ RUN npm ci --omit=dev
 
 # Codice sorgente (il .dockerignore esclude .env, test, node_modules)
 COPY src ./src
+# Versione web statica dell'app (servita sotto /app)
+COPY public ./public
 
 ENV NODE_ENV=production
 # La porta effettiva la decide la piattaforma via variabile PORT; 3000 di default.
