@@ -1,6 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { app, buildKpiPayload, extractResults, resolveRange } from "../src/server.js";
+import {
+  app,
+  buildKpiPayload,
+  checkAlertRules,
+  defaultAlertConfig,
+  extractResults,
+  resolveRange,
+  sanitizeAlertConfig,
+} from "../src/server.js";
 
 // --- Unit test: estrazione risultati (conversioni) da Meta ---------------------
 
@@ -93,6 +101,55 @@ test("buildKpiPayload: costPerResult è null quando non ci sono risultati", () =
   const payload = buildKpiPayload("x", { displayName: "X" }, insights);
   assert.equal(payload.results, 0);
   assert.equal(payload.costPerResult, null);
+});
+
+// --- Unit test: motore alert ---------------------------------------------------
+
+test("checkAlertRules scatta gli alert giusti in base a soglie e metriche", () => {
+  const config = defaultAlertConfig(); // tutti attivi, soglie di default
+  const metrics = {
+    ctrPrev: 1.0, ctrCur: 0.5, // -50% > 15% -> ctr_low
+    resPrev: 100, resCur: 50, // -50% > 30% -> results_down
+    cpaCur: 10, // > 5 -> cpa_high
+    monthSpend: 500, // < 1000 -> spend_high NO
+    last3Spend: 0, // -> spend_zero
+    reachPrev: 100, reachCur: 90, // non < 60% -> reach_drop NO
+  };
+  const ids = checkAlertRules(config, metrics).map((a) => a.id);
+  assert.ok(ids.includes("ctr_low"));
+  assert.ok(ids.includes("cpa_high"));
+  assert.ok(ids.includes("results_down"));
+  assert.ok(ids.includes("spend_zero"));
+  assert.ok(!ids.includes("spend_high"));
+  assert.ok(!ids.includes("reach_drop"));
+});
+
+test("checkAlertRules rispetta l'attivazione e le soglie personalizzate", () => {
+  const config = defaultAlertConfig();
+  config.ctr_low.enabled = false; // disattivato -> non deve scattare
+  config.cpa_high.threshold = 20; // soglia alzata -> con CPA 10 non scatta
+  const metrics = {
+    ctrPrev: 1.0, ctrCur: 0.1,
+    resPrev: 0, resCur: 0,
+    cpaCur: 10,
+    monthSpend: 0, last3Spend: 5,
+    reachPrev: 0, reachCur: 0,
+  };
+  const ids = checkAlertRules(config, metrics).map((a) => a.id);
+  assert.ok(!ids.includes("ctr_low"));
+  assert.ok(!ids.includes("cpa_high"));
+});
+
+test("sanitizeAlertConfig accetta solo id noti e soglie valide", () => {
+  const cfg = sanitizeAlertConfig({
+    ctr_low: { enabled: false, threshold: 25 },
+    cpa_high: { enabled: true, threshold: -3 }, // negativa -> ignorata, resta default
+    inesistente: { enabled: true },
+  });
+  assert.equal(cfg.ctr_low.enabled, false);
+  assert.equal(cfg.ctr_low.threshold, 25);
+  assert.equal(cfg.cpa_high.threshold, 5); // default mantenuto
+  assert.equal(cfg.inesistente, undefined);
 });
 
 // --- Integration test HTTP: health, auth, 404, token mancante ------------------
@@ -197,4 +254,27 @@ test("endpoint HTTP end-to-end", async (t) => {
   });
   const afterBody = await after.json();
   assert.equal(afterBody.notifications[0].title, "Test");
+
+  // --- alert config ---
+  const alertsGet = await fetch(`${base}/alerts/ricciardi-food-agency`, {
+    headers: { "x-api-key": KEY },
+  });
+  assert.equal(alertsGet.status, 200);
+  const alertsBody = await alertsGet.json();
+  assert.ok(Array.isArray(alertsBody.defs));
+  assert.equal(alertsBody.config.ctr_low.threshold, 15);
+
+  // salva una soglia personalizzata
+  const put = await fetch(`${base}/alerts/ricciardi-food-agency`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", "x-api-key": KEY },
+    body: JSON.stringify({ config: { cpa_high: { enabled: true, threshold: 8 } } }),
+  });
+  assert.equal(put.status, 200);
+
+  const alertsGet2 = await fetch(`${base}/alerts/ricciardi-food-agency`, {
+    headers: { "x-api-key": KEY },
+  });
+  const alertsBody2 = await alertsGet2.json();
+  assert.equal(alertsBody2.config.cpa_high.threshold, 8);
 });

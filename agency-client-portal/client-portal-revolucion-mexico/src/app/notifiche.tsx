@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -26,6 +27,7 @@ function formatWhen(iso: string): string {
 }
 
 export default function NotificheScreen() {
+  const router = useRouter();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -65,7 +67,15 @@ export default function NotificheScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={brandColor} />
           }>
-          <ThemedText type="subtitle">Notifiche</ThemedText>
+          <View style={styles.header}>
+            <ThemedText type="subtitle">Notifiche</ThemedText>
+            <Pressable
+              onPress={() => router.push('/impostazioni-alert')}
+              hitSlop={10}
+              accessibilityLabel="Impostazioni alert">
+              <ThemedText style={styles.gear}>⚙️</ThemedText>
+            </Pressable>
+          </View>
 
           {error ? (
             <ThemedView type="backgroundElement" style={styles.box}>
@@ -114,6 +124,8 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: Spacing.four, gap: Spacing.three, paddingBottom: Spacing.six },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  gear: { fontSize: 22 },
   item: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
   itemHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   dot: { width: 9, height: 9, borderRadius: 5 },

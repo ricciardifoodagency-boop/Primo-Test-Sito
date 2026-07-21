@@ -59,11 +59,16 @@ export function resolveRange(range) {
   return RANGES[range] ? range : DEFAULT_RANGE;
 }
 
-export async function fetchMetaInsights(adAccountId, accessToken, datePreset = "last_30d") {
+export async function fetchMetaInsights(adAccountId, accessToken, dateOrOpts = "last_30d") {
   // Endpoint Meta Marketing API: insights aggregati sul periodo scelto.
   // Documentazione: https://developers.facebook.com/docs/marketing-api/insights
+  // `dateOrOpts` può essere una stringa (date_preset) o { timeRange: {since, until} }.
+  const opts = typeof dateOrOpts === "string" ? { datePreset: dateOrOpts } : dateOrOpts;
   const fields = "spend,actions,impressions,cpm,reach,clicks,ctr";
-  const url = `https://graph.facebook.com/v20.0/act_${adAccountId}/insights?fields=${fields}&date_preset=${datePreset}&access_token=${accessToken}`;
+  const dateParam = opts.timeRange
+    ? `time_range=${encodeURIComponent(JSON.stringify(opts.timeRange))}`
+    : `date_preset=${opts.datePreset || "last_30d"}`;
+  const url = `https://graph.facebook.com/v20.0/act_${adAccountId}/insights?fields=${fields}&${dateParam}&access_token=${accessToken}`;
 
   const res = await fetch(url);
   if (!res.ok) {
@@ -175,6 +180,153 @@ export function buildKpiPayload(clientId, client, insights, periodo = "ultimi 30
     periodo,
     aggiornatoIl: new Date().toISOString(),
   };
+}
+
+// --- Alert automatici sui KPI ------------------------------------------------
+// Catalogo degli alert. `kind`: "threshold" (valore impostabile) o "toggle".
+export const ALERT_DEFS = [
+  { id: "ctr_low", label: "CTR basso", kind: "threshold", unit: "%", default: 15, group: "Performance", desc: "CTR sceso oltre X% vs settimana scorsa" },
+  { id: "cpa_high", label: "Costo per risultato alto", kind: "threshold", unit: "€", default: 5, group: "Performance", desc: "Costo per risultato sopra € X" },
+  { id: "results_down", label: "Risultati in calo", kind: "threshold", unit: "%", default: 30, group: "Performance", desc: "Contatti scesi oltre X% vs settimana scorsa" },
+  { id: "spend_high", label: "Budget superato", kind: "threshold", unit: "€", default: 1000, group: "Budget", desc: "Spesa del mese sopra € X" },
+  { id: "spend_zero", label: "Spesa ferma", kind: "toggle", group: "Budget", desc: "Nessuna spesa negli ultimi 3 giorni" },
+  { id: "reach_drop", label: "Copertura crollata", kind: "toggle", group: "Performance", desc: "Copertura scesa molto vs settimana scorsa" },
+  { id: "new_creatives", label: "Creatività da approvare", kind: "toggle", group: "Operativo", desc: "Nuovi contenuti in attesa di approvazione" },
+  { id: "monthly_report", label: "Report mensile pronto", kind: "toggle", group: "Operativo", desc: "Report pronto a inizio mese" },
+  { id: "competitor_surge", label: "Competitor in movimento", kind: "toggle", group: "Competitor", desc: "Un competitor ha aumentato le inserzioni" },
+];
+
+export function defaultAlertConfig() {
+  const cfg = {};
+  for (const a of ALERT_DEFS) {
+    cfg[a.id] = a.kind === "threshold" ? { enabled: true, threshold: a.default } : { enabled: true };
+  }
+  return cfg;
+}
+
+const alertConfigs = new Map(); // clientId -> config
+const alertState = new Map(); // clientId -> Set(ruleId attivi) per anti-spam
+
+export function getAlertConfig(clientId) {
+  return alertConfigs.get(clientId) || defaultAlertConfig();
+}
+
+// Valida e normalizza la config in arrivo dall'app (accetta solo id noti).
+export function sanitizeAlertConfig(input) {
+  const base = defaultAlertConfig();
+  if (!input || typeof input !== "object") return base;
+  for (const a of ALERT_DEFS) {
+    const incoming = input[a.id];
+    if (!incoming || typeof incoming !== "object") continue;
+    base[a.id].enabled = Boolean(incoming.enabled);
+    if (a.kind === "threshold") {
+      const t = Number(incoming.threshold);
+      if (Number.isFinite(t) && t >= 0) base[a.id].threshold = t;
+    }
+  }
+  return base;
+}
+
+function eur(n) {
+  return "€ " + Number(n).toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function pctLabel(n) {
+  return Number(n).toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
+}
+
+// Funzione PURA: dato config + metriche, ritorna gli alert scattati. Testabile
+// senza rete.
+export function checkAlertRules(config, m) {
+  const out = [];
+  const on = (id) => config[id] && config[id].enabled;
+  const thr = (id) => Number(config[id]?.threshold);
+
+  if (on("ctr_low") && m.ctrPrev > 0 && m.ctrCur < m.ctrPrev * (1 - thr("ctr_low") / 100)) {
+    out.push({ id: "ctr_low", title: "CTR in calo ⚠️",
+      body: `Il CTR è sceso a ${pctLabel(m.ctrCur)} (era ${pctLabel(m.ctrPrev)} la settimana scorsa), oltre il ${thr("ctr_low")}% di calo impostato.` });
+  }
+  if (on("cpa_high") && m.resCur > 0 && m.cpaCur > thr("cpa_high")) {
+    out.push({ id: "cpa_high", title: "Costo per risultato alto ⚠️",
+      body: `Il costo per risultato è ${eur(m.cpaCur)}, sopra la soglia di ${eur(thr("cpa_high"))}.` });
+  }
+  if (on("results_down") && m.resPrev > 0 && m.resCur < m.resPrev * (1 - thr("results_down") / 100)) {
+    out.push({ id: "results_down", title: "Risultati in calo ⚠️",
+      body: `I contatti sono scesi a ${m.resCur} (erano ${m.resPrev} la settimana scorsa), oltre il ${thr("results_down")}% di calo impostato.` });
+  }
+  if (on("spend_high") && m.monthSpend > thr("spend_high")) {
+    out.push({ id: "spend_high", title: "Budget superato 💸",
+      body: `La spesa del mese è ${eur(m.monthSpend)}, sopra il budget di ${eur(thr("spend_high"))}.` });
+  }
+  if (on("spend_zero") && m.last3Spend === 0) {
+    out.push({ id: "spend_zero", title: "Campagne ferme ⛔",
+      body: "Nessuna spesa negli ultimi 3 giorni: le campagne potrebbero essere spente." });
+  }
+  if (on("reach_drop") && m.reachPrev > 0 && m.reachCur < m.reachPrev * 0.6) {
+    out.push({ id: "reach_drop", title: "Copertura in calo",
+      body: `La copertura è scesa a ${m.reachCur.toLocaleString("it-IT")} (era ${m.reachPrev.toLocaleString("it-IT")}).` });
+  }
+  return out;
+}
+
+// Data (YYYY-MM-DD) a partire da uno scostamento in giorni da oggi.
+function ymdDaysAgo(days) {
+  return new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+}
+
+// Legge i KPI da Meta, calcola le metriche e valuta gli alert. Invia notifica
+// per quelli appena scattati (anti-spam: non ripete finché non rientrano).
+export async function evaluateAlerts(clientId) {
+  const clients = await loadClients();
+  const client = clients[clientId];
+  if (!client) throw new Error("Cliente non trovato");
+  const token = process.env[client.metaAccessTokenEnvVar];
+  if (!token) throw new Error("Token mancante");
+  const acc = client.metaAdAccountId;
+
+  const cur = await fetchMetaInsights(acc, token, { timeRange: { since: ymdDaysAgo(7), until: ymdDaysAgo(1) } });
+  const prev = await fetchMetaInsights(acc, token, { timeRange: { since: ymdDaysAgo(14), until: ymdDaysAgo(8) } });
+  const month = await fetchMetaInsights(acc, token, "this_month");
+  const last3 = await fetchMetaInsights(acc, token, { timeRange: { since: ymdDaysAgo(3), until: ymdDaysAgo(1) } });
+
+  const resCur = extractResults(cur?.actions, client.resultActionType);
+  const resPrev = extractResults(prev?.actions, client.resultActionType);
+  const spendCur = cur ? num(cur.spend) : 0;
+  const metrics = {
+    ctrCur: cur ? num(cur.ctr) : 0,
+    ctrPrev: prev ? num(prev.ctr) : 0,
+    resCur,
+    resPrev,
+    cpaCur: resCur > 0 ? spendCur / resCur : 0,
+    monthSpend: month ? num(month.spend) : 0,
+    last3Spend: last3 ? num(last3.spend) : 0,
+    reachCur: cur ? num(cur.reach) : 0,
+    reachPrev: prev ? num(prev.reach) : 0,
+  };
+
+  const triggered = checkAlertRules(getAlertConfig(clientId), metrics);
+
+  const active = alertState.get(clientId) || new Set();
+  const fresh = triggered.filter((t) => !active.has(t.id));
+  alertState.set(clientId, new Set(triggered.map((t) => t.id)));
+
+  for (const t of fresh) {
+    const notif = {
+      id: String(Date.now()) + "-" + t.id,
+      title: t.title,
+      body: t.body,
+      data: { type: "alert", alert: t.id },
+      sentAt: new Date().toISOString(),
+    };
+    const arr = notificationsLog.get(clientId) || [];
+    arr.unshift(notif);
+    notificationsLog.set(clientId, arr);
+    try {
+      await sendExpoPush([...(devices.get(clientId) || [])], t.title, t.body, notif.data);
+    } catch (e) {
+      console.error("push error:", e.message);
+    }
+  }
+  return { metrics, triggered, notified: fresh.length };
 }
 
 app.get("/kpi/:clientId", requireApiKey, async (req, res) => {
@@ -304,6 +456,46 @@ app.post("/notify/:clientId", requireApiKey, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Errore nell'invio della notifica" });
+  }
+});
+
+// Configurazione alert del cliente (catalogo + valori attuali).
+app.get("/alerts/:clientId", requireApiKey, async (req, res) => {
+  try {
+    const clients = await loadClients();
+    if (!clients[req.params.clientId]) {
+      return res.status(404).json({ error: "Cliente non trovato" });
+    }
+    res.json({ defs: ALERT_DEFS, config: getAlertConfig(req.params.clientId) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Errore nel recupero degli alert" });
+  }
+});
+
+// Salva la configurazione alert (attivazioni + soglie) modificata dall'app.
+app.put("/alerts/:clientId", requireApiKey, async (req, res) => {
+  try {
+    const clients = await loadClients();
+    if (!clients[req.params.clientId]) {
+      return res.status(404).json({ error: "Cliente non trovato" });
+    }
+    const config = sanitizeAlertConfig(req.body?.config);
+    alertConfigs.set(req.params.clientId, config);
+    res.json({ ok: true, config });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Errore nel salvataggio degli alert" });
+  }
+});
+
+// Esegue il controllo degli alert (lo chiama un cron giornaliero sul server).
+app.post("/alerts/:clientId/run", requireApiKey, async (req, res) => {
+  try {
+    res.json(await evaluateAlerts(req.params.clientId));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || "Errore nel controllo degli alert" });
   }
 });
 
