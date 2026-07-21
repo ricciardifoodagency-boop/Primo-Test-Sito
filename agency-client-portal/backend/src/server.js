@@ -77,8 +77,16 @@ const RESULT_ACTION_TYPES = [
   "link_click",
 ];
 
-export function extractResults(actions) {
+export function extractResults(actions, preferredType) {
   if (!Array.isArray(actions)) return 0;
+  // Se il cliente ha un tipo di risultato configurato (es. "lead"), usiamo SOLO
+  // quello: così il numero è coerente e confrontabile tra periodi diversi.
+  // Se non è presente nel periodo, il risultato è 0 (non "ripieghiamo" su altro).
+  if (preferredType) {
+    const match = actions.find((a) => a.action_type === preferredType);
+    return match ? Number(match.value) || 0 : 0;
+  }
+  // Nessuna configurazione: prendiamo la prima conversione per priorità.
   for (const type of RESULT_ACTION_TYPES) {
     const match = actions.find((a) => a.action_type === type);
     if (match) return Number(match.value) || 0;
@@ -94,13 +102,15 @@ function num(v) {
 // Trasforma la risposta grezza di Meta nel payload compatto che l'app mobile consuma.
 export function buildKpiPayload(clientId, client, insights, periodo = "ultimi 30 giorni") {
   const spend = insights ? num(insights.spend) : 0;
-  const results = extractResults(insights?.actions);
+  const results = extractResults(insights?.actions, client.resultActionType);
   return {
     clientId,
     displayName: client.displayName,
     spend,
     impressions: insights ? num(insights.impressions) : 0,
     results,
+    // Etichetta del risultato specifica del cliente (es. "Contatti"), default "Risultati".
+    resultLabel: client.resultLabel || "Risultati",
     // Costo per risultato (CPA): speso / risultati. null quando non ci sono
     // risultati, per evitare divisioni per zero e mostrare "—" nell'app.
     costPerResult: results > 0 ? spend / results : null,

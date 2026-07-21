@@ -30,6 +30,7 @@ export type Kpi = {
   spend: number;
   impressions: number;
   results: number;
+  resultLabel: string;
   costPerResult: number | null;
   reach: number;
   clicks: number;

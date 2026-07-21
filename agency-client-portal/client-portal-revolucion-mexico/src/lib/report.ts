@@ -10,9 +10,10 @@ import { formatEuro, formatInt, formatPct } from './format';
 
 function summaryText(kpi: Kpi): string {
   const cpa = kpi.costPerResult != null ? formatEuro(kpi.costPerResult) : '—';
+  const label = (kpi.resultLabel || 'risultati').toLowerCase();
   return (
     `Nel periodo "${kpi.periodo}" sono stati investiti ${formatEuro(kpi.spend)} in campagne Meta, ` +
-    `ottenendo ${formatInt(kpi.results)} risultati a un costo medio di ${cpa} ciascuno. ` +
+    `ottenendo ${formatInt(kpi.results)} ${label} a un costo medio di ${cpa} ciascuno. ` +
     `Le inserzioni sono state mostrate ${formatInt(kpi.impressions)} volte, raggiungendo ` +
     `${formatInt(kpi.reach)} persone.`
   );
@@ -63,7 +64,7 @@ export function buildReportHtml(kpi: Kpi, brandColor: string): string {
 
   <div class="grid">
     ${card('Spesa', formatEuro(kpi.spend))}
-    ${card('Risultati', formatInt(kpi.results))}
+    ${card(kpi.resultLabel || 'Risultati', formatInt(kpi.results))}
     ${card('Costo per risultato', cpa)}
     ${card('Impression', formatInt(kpi.impressions))}
     ${card('Copertura', formatInt(kpi.reach))}

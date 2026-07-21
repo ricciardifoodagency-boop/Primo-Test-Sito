@@ -26,6 +26,17 @@ test("extractResults sceglie la conversione con priorità più alta", () => {
   assert.equal(extractResults([{ action_type: "post_reaction", value: "9" }]), 0);
 });
 
+test("extractResults con tipo configurato usa SOLO quello (coerenza tra periodi)", () => {
+  const actions = [
+    { action_type: "link_click", value: "163" },
+    { action_type: "lead", value: "7" },
+  ];
+  // con preferredType "lead" prende i lead, ignorando link_click (più numerosi)
+  assert.equal(extractResults(actions, "lead"), 7);
+  // se il tipo configurato non è presente nel periodo -> 0 (niente ripiego)
+  assert.equal(extractResults([{ action_type: "link_click", value: "163" }], "lead"), 0);
+});
+
 // --- Unit test: trasformazione della risposta Meta nel payload KPI -------------
 
 test("buildKpiPayload trasforma l'insight Meta nel payload per l'app", () => {

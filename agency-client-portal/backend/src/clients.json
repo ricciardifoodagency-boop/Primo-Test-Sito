@@ -2,6 +2,8 @@
   "ricciardi-food-agency": {
     "displayName": "Stefano Ricciardi Food Agency",
     "metaAdAccountId": "781675410281419",
-    "metaAccessTokenEnvVar": "META_TOKEN_RICCIARDI_FOOD_AGENCY"
+    "metaAccessTokenEnvVar": "META_TOKEN_RICCIARDI_FOOD_AGENCY",
+    "resultActionType": "lead",
+    "resultLabel": "Contatti"
   }
 }

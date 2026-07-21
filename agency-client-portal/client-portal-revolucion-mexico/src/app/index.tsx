@@ -15,7 +15,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { brandColor, fetchKpi, RANGES, type Kpi, type RangeKey } from '@/lib/api';
-import { formatEuro, formatInt, formatUpdatedAt } from '@/lib/format';
+import { formatEuro, formatInt, formatPct, formatUpdatedAt } from '@/lib/format';
 import { downloadReport } from '@/lib/report';
 
 function KpiCard({ label, value }: { label: string; value: string }) {
@@ -138,7 +138,7 @@ export default function DashboardScreen() {
             <>
               <View style={styles.grid}>
                 <KpiCard label="Spesa" value={formatEuro(kpi?.spend ?? 0)} />
-                <KpiCard label="Risultati" value={formatInt(kpi?.results ?? 0)} />
+                <KpiCard label={kpi?.resultLabel ?? 'Risultati'} value={formatInt(kpi?.results ?? 0)} />
               </View>
               <View style={styles.grid}>
                 <KpiCard
@@ -146,6 +146,10 @@ export default function DashboardScreen() {
                   value={kpi?.costPerResult != null ? formatEuro(kpi.costPerResult) : '—'}
                 />
                 <KpiCard label="Impression" value={formatInt(kpi?.impressions ?? 0)} />
+              </View>
+              <View style={styles.grid}>
+                <KpiCard label="Copertura" value={formatInt(kpi?.reach ?? 0)} />
+                <KpiCard label="CTR" value={formatPct(kpi?.ctr ?? 0)} />
               </View>
 
               {/* Bottone report */}
