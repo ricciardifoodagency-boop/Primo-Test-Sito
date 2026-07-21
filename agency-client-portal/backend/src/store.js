@@ -159,13 +159,31 @@ export async function setStoredAlertConfig(clientId, config) {
 // --- Creatività (Approvazioni) e Calendario ------------------------------------
 // L'agenzia le inserisce dalla console Firebase (collezioni "creatives" e
 // "calendar"). Senza Firestore si usano i file seed.
+const creativeOverlay = new Map(); // `${clientId}:${id}` -> patch (solo fallback)
+
 export async function listCreatives(clientId) {
   if (fsdb) {
-    const snap = await col(clientId, "creatives").orderBy("pianificataTs", "asc").get();
+    const snap = await col(clientId, "creatives").get();
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   }
   const seed = await loadSeed("creatives-seed.json");
-  return seed[clientId] || [];
+  return (seed[clientId] || []).map((c) => ({
+    ...c,
+    ...(creativeOverlay.get(`${clientId}:${c.id}`) || {}),
+  }));
+}
+
+// Aggiorna una creatività (es. stato approvata/rifiutata dal cliente).
+export async function updateCreative(clientId, id, patch) {
+  if (fsdb) {
+    const ref = col(clientId, "creatives").doc(id);
+    await ref.set(patch, { merge: true });
+    const doc = await ref.get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  }
+  const key = `${clientId}:${id}`;
+  creativeOverlay.set(key, { ...(creativeOverlay.get(key) || {}), ...patch });
+  return { id, ...patch };
 }
 
 export async function listCalendar(clientId) {

@@ -89,6 +89,53 @@ export async function fetchCompetitors(): Promise<CompetitorSnapshot> {
   return res.json() as Promise<CompetitorSnapshot>;
 }
 
+// --- Creatività (Approvazioni) e Calendario ----------------------------------
+
+export type CreativeStatus = 'in_attesa' | 'approvata' | 'rifiutata';
+export type Creative = {
+  id: string;
+  titolo: string;
+  formato: string;
+  pianificata: string;
+  stato: CreativeStatus;
+  mediaUrl?: string;
+};
+
+export async function fetchCreatives(): Promise<Creative[]> {
+  const res = await fetch(`${backendUrl}/creatives/${clientId}`, {
+    headers: { 'x-api-key': apiKey },
+  });
+  if (!res.ok) throw new Error(`Errore recupero creatività: ${res.status}`);
+  const json = (await res.json()) as { creatives: Creative[] };
+  return json.creatives;
+}
+
+export async function updateCreativeStatus(id: string, stato: CreativeStatus): Promise<void> {
+  const res = await fetch(`${backendUrl}/creatives/${clientId}/${id}`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
+    body: JSON.stringify({ stato }),
+  });
+  if (!res.ok) throw new Error(`Errore aggiornamento creatività: ${res.status}`);
+}
+
+export type CalendarItem = {
+  id: string;
+  giorno: string;
+  data: string;
+  titolo: string;
+  canale: string;
+};
+
+export async function fetchCalendar(): Promise<CalendarItem[]> {
+  const res = await fetch(`${backendUrl}/calendar/${clientId}`, {
+    headers: { 'x-api-key': apiKey },
+  });
+  if (!res.ok) throw new Error(`Errore recupero calendario: ${res.status}`);
+  const json = (await res.json()) as { calendar: CalendarItem[] };
+  return json.calendar;
+}
+
 // --- Notifiche ---------------------------------------------------------------
 
 export type AppNotification = {

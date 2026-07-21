@@ -623,6 +623,22 @@ app.get("/creatives/:clientId", requireApiKey, async (req, res) => {
   }
 });
 
+// Il cliente approva/rifiuta una creatività.
+app.put("/creatives/:clientId/:id", requireApiKey, async (req, res) => {
+  const { clientId, id } = req.params;
+  const { stato } = req.body || {};
+  if (!["in_attesa", "approvata", "rifiutata"].includes(stato)) {
+    return res.status(400).json({ error: "stato non valido" });
+  }
+  try {
+    const updated = await store.updateCreative(clientId, id, { stato });
+    res.json({ ok: true, creative: updated });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Errore nell'aggiornamento della creatività" });
+  }
+});
+
 // Contenuti programmati (Calendario).
 app.get("/calendar/:clientId", requireApiKey, async (req, res) => {
   const { clientId } = req.params;
