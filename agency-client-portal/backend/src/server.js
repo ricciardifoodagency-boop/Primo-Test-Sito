@@ -630,6 +630,25 @@ if (isDirectRun) {
   app.listen(PORT, () => {
     console.log(`Backend portale clienti in ascolto sulla porta ${PORT}`);
   });
+
+  // Controllo alert periodico (best-effort): valuta gli alert di tutti i clienti
+  // ogni 12 ore mentre il server è attivo. Su hosting che va in sleep (es. free
+  // tier), affiancare un cron ESTERNO che chiama POST /alerts/:clientId/run.
+  const ALERT_CHECK_HOURS = 12;
+  setInterval(async () => {
+    try {
+      const clients = await loadClients();
+      for (const id of Object.keys(clients)) {
+        try {
+          await evaluateAlerts(id);
+        } catch (e) {
+          console.error(`alert check ${id}:`, e.message);
+        }
+      }
+    } catch (e) {
+      console.error("alert check:", e.message);
+    }
+  }, ALERT_CHECK_HOURS * 3600 * 1000);
 }
 
 export { app };
