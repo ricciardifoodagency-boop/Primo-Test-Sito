@@ -32,6 +32,9 @@ export default function AppTabs() {
           <TabTrigger name="competitor" href="/competitor" asChild>
             <TabButton>Competitor</TabButton>
           </TabTrigger>
+          <TabTrigger name="notifiche" href="/notifiche" asChild>
+            <TabButton>Notifiche</TabButton>
+          </TabTrigger>
         </CustomTabList>
       </TabList>
     </Tabs>

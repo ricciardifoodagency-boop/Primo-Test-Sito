@@ -39,6 +39,10 @@ export default function AppTabs() {
         name="competitor"
         options={{ title: 'Competitor', tabBarIcon: () => <TabEmoji emoji="🕵️" /> }}
       />
+      <Tabs.Screen
+        name="notifiche"
+        options={{ title: 'Notifiche', tabBarIcon: () => <TabEmoji emoji="🔔" /> }}
+      />
     </Tabs>
   );
 }

@@ -13,6 +13,7 @@ const extra = (Constants.expoConfig?.extra ?? {}) as {
 export const clientId = extra.clientId ?? "";
 export const backendUrl = extra.backendUrl ?? "";
 export const brandColor = extra.brandColor ?? "#C1121F";
+export const apiKey = extra.apiKey ?? "";
 
 // Periodi selezionabili nella dashboard. La chiave viene passata al backend
 // (?range=...), l'etichetta è per i pulsanti.
@@ -78,7 +79,7 @@ export type CompetitorSnapshot = {
 
 export async function fetchCompetitors(): Promise<CompetitorSnapshot> {
   const res = await fetch(`${backendUrl}/competitor/${clientId}`, {
-    headers: { "x-api-key": extra.apiKey ?? "" },
+    headers: { "x-api-key": apiKey },
   });
 
   if (!res.ok) {
@@ -86,4 +87,34 @@ export async function fetchCompetitors(): Promise<CompetitorSnapshot> {
   }
 
   return res.json() as Promise<CompetitorSnapshot>;
+}
+
+// --- Notifiche ---------------------------------------------------------------
+
+export type AppNotification = {
+  id: string;
+  title: string;
+  body: string;
+  data?: unknown;
+  sentAt: string;
+};
+
+// Registra il token push del dispositivo sul backend (best-effort).
+export async function registerDevice(token: string): Promise<void> {
+  await fetch(`${backendUrl}/devices/${clientId}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": apiKey },
+    body: JSON.stringify({ token }),
+  });
+}
+
+export async function fetchNotifications(): Promise<AppNotification[]> {
+  const res = await fetch(`${backendUrl}/notifications/${clientId}`, {
+    headers: { "x-api-key": apiKey },
+  });
+  if (!res.ok) {
+    throw new Error(`Errore recupero notifiche: ${res.status}`);
+  }
+  const json = (await res.json()) as { notifications: AppNotification[] };
+  return json.notifications;
 }

@@ -161,4 +161,40 @@ test("endpoint HTTP end-to-end", async (t) => {
     headers: { "x-api-key": KEY },
   });
   assert.equal(compNotFound.status, 404);
+
+  // --- notifiche ---
+  // storico: contiene almeno le notifiche seed
+  const notifs = await fetch(`${base}/notifications/ricciardi-food-agency`, {
+    headers: { "x-api-key": KEY },
+  });
+  assert.equal(notifs.status, 200);
+  const notifsBody = await notifs.json();
+  assert.ok(Array.isArray(notifsBody.notifications));
+  assert.ok(notifsBody.notifications.length >= 2);
+
+  // registrazione dispositivo
+  const dev = await fetch(`${base}/devices/ricciardi-food-agency`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": KEY },
+    body: JSON.stringify({ token: "ExponentPushToken[test]" }),
+  });
+  assert.equal(dev.status, 200);
+
+  // invio notifica: viene registrata nello storico (la push può fallire in
+  // ambiente senza rete, ma la notifica resta salvata e l'endpoint risponde 200)
+  const notify = await fetch(`${base}/notify/ricciardi-food-agency`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": KEY },
+    body: JSON.stringify({ title: "Test", body: "Notifica di prova" }),
+  });
+  assert.equal(notify.status, 200);
+  const notifyBody = await notify.json();
+  assert.equal(notifyBody.ok, true);
+  assert.equal(notifyBody.notification.title, "Test");
+
+  const after = await fetch(`${base}/notifications/ricciardi-food-agency`, {
+    headers: { "x-api-key": KEY },
+  });
+  const afterBody = await after.json();
+  assert.equal(afterBody.notifications[0].title, "Test");
 });

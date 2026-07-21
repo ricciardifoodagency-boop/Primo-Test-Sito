@@ -74,6 +74,47 @@ export async function fetchMetaInsights(adAccountId, accessToken, datePreset = "
   return json.data?.[0] || null;
 }
 
+// --- Notifiche push ----------------------------------------------------------
+// Store in memoria: i token dei dispositivi per cliente e lo storico notifiche
+// generate a runtime. In produzione vanno persistiti su un DB (su Render il
+// filesystem è effimero e si azzera a ogni deploy). Le notifiche "seed" servono
+// a mostrare lo storico anche subito dopo un riavvio.
+const devices = new Map(); // clientId -> Set(pushToken)
+const notificationsLog = new Map(); // clientId -> [notifica, ...] (più recenti in testa)
+
+export async function loadNotificationSeed() {
+  try {
+    const raw = await readFile(
+      new URL("./notifications-seed.json", import.meta.url),
+      "utf-8"
+    );
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+// Invia una notifica push ai token indicati tramite l'API push di Expo.
+export async function sendExpoPush(tokens, title, body, data) {
+  if (!tokens.length) return { sent: 0 };
+  const messages = tokens.map((to) => ({
+    to,
+    title,
+    body,
+    sound: "default",
+    data: data || {},
+  }));
+  const res = await fetch("https://exp.host/--/api/v2/push/send", {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify(messages),
+  });
+  if (!res.ok) {
+    throw new Error(`Expo push error ${res.status}: ${await res.text()}`);
+  }
+  return { sent: tokens.length, response: await res.json() };
+}
+
 // Tipi di azione che consideriamo "risultato/conversione", in ordine di priorità.
 // Gli account reali ottimizzano per obiettivi diversi (acquisti, contatti/lead,
 // messaggi...), quindi non ci limitiamo a "purchase": prendiamo il primo tipo
@@ -191,6 +232,78 @@ app.get("/competitor/:clientId", requireApiKey, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Errore nel recupero dei competitor" });
+  }
+});
+
+// L'app registra il token push del dispositivo per il cliente.
+app.post("/devices/:clientId", requireApiKey, async (req, res) => {
+  const { clientId } = req.params;
+  const token = req.body?.token;
+  if (!token) return res.status(400).json({ error: "token mancante" });
+  try {
+    const clients = await loadClients();
+    if (!clients[clientId]) {
+      return res.status(404).json({ error: "Cliente non trovato" });
+    }
+    if (!devices.has(clientId)) devices.set(clientId, new Set());
+    devices.get(clientId).add(token);
+    res.json({ ok: true, registered: devices.get(clientId).size });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Errore nella registrazione del dispositivo" });
+  }
+});
+
+// Storico notifiche del cliente (seed + quelle inviate a runtime).
+app.get("/notifications/:clientId", requireApiKey, async (req, res) => {
+  const { clientId } = req.params;
+  try {
+    const seed = await loadNotificationSeed();
+    const live = notificationsLog.get(clientId) || [];
+    const seeded = seed[clientId] || [];
+    res.json({ notifications: [...live, ...seeded] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Errore nel recupero delle notifiche" });
+  }
+});
+
+// L'agenzia invia una notifica al cliente: la registra nello storico e la
+// spinge ai dispositivi registrati.
+app.post("/notify/:clientId", requireApiKey, async (req, res) => {
+  const { clientId } = req.params;
+  const { title, body, data } = req.body || {};
+  if (!title || !body) {
+    return res.status(400).json({ error: "title e body sono richiesti" });
+  }
+  try {
+    const clients = await loadClients();
+    if (!clients[clientId]) {
+      return res.status(404).json({ error: "Cliente non trovato" });
+    }
+    const notif = {
+      id: String(Date.now()),
+      title,
+      body,
+      data: data || null,
+      sentAt: new Date().toISOString(),
+    };
+    const arr = notificationsLog.get(clientId) || [];
+    arr.unshift(notif);
+    notificationsLog.set(clientId, arr);
+
+    const tokens = [...(devices.get(clientId) || [])];
+    let push = { sent: 0 };
+    try {
+      push = await sendExpoPush(tokens, title, body, data);
+    } catch (e) {
+      // La notifica resta comunque nello storico anche se la push fallisce.
+      console.error("push error:", e.message);
+    }
+    res.json({ ok: true, notification: notif, devices: tokens.length, push });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Errore nell'invio della notifica" });
   }
 });
 

@@ -28,6 +28,7 @@
     "plugins": [
       "expo-router",
       "expo-video",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {
