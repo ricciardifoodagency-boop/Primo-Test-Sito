@@ -43,6 +43,10 @@ export default function AppTabs() {
         name="notifiche"
         options={{ title: 'Notifiche', tabBarIcon: () => <TabEmoji emoji="🔔" /> }}
       />
+      <Tabs.Screen
+        name="richieste"
+        options={{ title: 'Richieste', tabBarIcon: () => <TabEmoji emoji="💬" /> }}
+      />
       {/* Schermata raggiungibile da Notifiche, nascosta dalla tab bar */}
       <Tabs.Screen name="impostazioni-alert" options={{ href: null }} />
     </Tabs>

@@ -277,4 +277,43 @@ test("endpoint HTTP end-to-end", async (t) => {
   });
   const alertsBody2 = await alertsGet2.json();
   assert.equal(alertsBody2.config.cpa_high.threshold, 8);
+
+  // --- richieste in-app ---
+  // il messaggio è obbligatorio
+  const reqBad = await fetch(`${base}/requests/ricciardi-food-agency`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": KEY },
+    body: JSON.stringify({ category: "Domanda" }),
+  });
+  assert.equal(reqBad.status, 400);
+
+  // invio richiesta
+  const reqNew = await fetch(`${base}/requests/ricciardi-food-agency`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": KEY },
+    body: JSON.stringify({ category: "Promozione", message: "Vorrei lanciare un'offerta per il weekend" }),
+  });
+  assert.equal(reqNew.status, 200);
+  const reqNewBody = await reqNew.json();
+  assert.equal(reqNewBody.request.status, "inviata");
+  const reqId = reqNewBody.request.id;
+
+  // compare nello storico (in testa) insieme al seed
+  const reqList = await fetch(`${base}/requests/ricciardi-food-agency`, {
+    headers: { "x-api-key": KEY },
+  });
+  const reqListBody = await reqList.json();
+  assert.equal(reqListBody.requests[0].id, reqId);
+  assert.ok(reqListBody.requests.length >= 2);
+
+  // l'agenzia risponde -> stato aggiornato
+  const reqUpd = await fetch(`${base}/requests/ricciardi-food-agency/${reqId}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", "x-api-key": KEY },
+    body: JSON.stringify({ status: "completata", reply: "Perfetto, partiamo venerdì!" }),
+  });
+  assert.equal(reqUpd.status, 200);
+  const reqUpdBody = await reqUpd.json();
+  assert.equal(reqUpdBody.request.status, "completata");
+  assert.equal(reqUpdBody.request.reply, "Perfetto, partiamo venerdì!");
 });

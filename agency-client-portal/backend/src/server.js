@@ -99,6 +99,21 @@ export async function loadNotificationSeed() {
   }
 }
 
+// Richieste inviate dal cliente all'agenzia (in memoria + seed di esempio).
+const clientRequests = new Map(); // clientId -> [richiesta, ...]
+
+export async function loadRequestSeed() {
+  try {
+    const raw = await readFile(
+      new URL("./requests-seed.json", import.meta.url),
+      "utf-8"
+    );
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
 // Invia una notifica push ai token indicati tramite l'API push di Expo.
 export async function sendExpoPush(tokens, title, body, data) {
   if (!tokens.length) return { sent: 0 };
@@ -496,6 +511,112 @@ app.post("/alerts/:clientId/run", requireApiKey, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message || "Errore nel controllo degli alert" });
+  }
+});
+
+// Storico richieste del cliente (live + seed), più recenti in testa.
+app.get("/requests/:clientId", requireApiKey, async (req, res) => {
+  const { clientId } = req.params;
+  try {
+    const clients = await loadClients();
+    if (!clients[clientId]) {
+      return res.status(404).json({ error: "Cliente non trovato" });
+    }
+    const seed = await loadRequestSeed();
+    const live = clientRequests.get(clientId) || [];
+    res.json({ requests: [...live, ...(seed[clientId] || [])] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Errore nel recupero delle richieste" });
+  }
+});
+
+// Il cliente invia una nuova richiesta all'agenzia.
+app.post("/requests/:clientId", requireApiKey, async (req, res) => {
+  const { clientId } = req.params;
+  const { category, message } = req.body || {};
+  if (!message || !String(message).trim()) {
+    return res.status(400).json({ error: "Il messaggio è obbligatorio" });
+  }
+  try {
+    const clients = await loadClients();
+    if (!clients[clientId]) {
+      return res.status(404).json({ error: "Cliente non trovato" });
+    }
+    const now = new Date().toISOString();
+    const request = {
+      id: String(Date.now()),
+      category: category || "Richiesta",
+      message: String(message).trim(),
+      status: "inviata",
+      reply: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const arr = clientRequests.get(clientId) || [];
+    arr.unshift(request);
+    clientRequests.set(clientId, arr);
+
+    // Conferma al cliente (storico notifiche + push).
+    const notif = {
+      id: String(Date.now()) + "-req",
+      title: "Richiesta ricevuta ✅",
+      body: "Grazie! L'agenzia ti risponderà a breve.",
+      data: { type: "request", id: request.id },
+      sentAt: now,
+    };
+    const nlog = notificationsLog.get(clientId) || [];
+    nlog.unshift(notif);
+    notificationsLog.set(clientId, nlog);
+    try {
+      await sendExpoPush([...(devices.get(clientId) || [])], notif.title, notif.body, notif.data);
+    } catch (e) {
+      console.error("push error:", e.message);
+    }
+
+    res.json({ ok: true, request });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Errore nell'invio della richiesta" });
+  }
+});
+
+// L'agenzia aggiorna una richiesta (stato / risposta). Usato dal pannello
+// agenzia; se c'è una risposta, avvisa il cliente.
+app.put("/requests/:clientId/:id", requireApiKey, async (req, res) => {
+  const { clientId, id } = req.params;
+  const { status, reply } = req.body || {};
+  try {
+    const arr = clientRequests.get(clientId) || [];
+    const request = arr.find((r) => r.id === id);
+    if (!request) {
+      return res.status(404).json({ error: "Richiesta non trovata" });
+    }
+    if (status) request.status = status;
+    if (reply !== undefined) request.reply = reply;
+    request.updatedAt = new Date().toISOString();
+
+    if (reply) {
+      const notif = {
+        id: String(Date.now()) + "-reply",
+        title: "Risposta dall'agenzia 💬",
+        body: reply,
+        data: { type: "request", id },
+        sentAt: request.updatedAt,
+      };
+      const nlog = notificationsLog.get(clientId) || [];
+      nlog.unshift(notif);
+      notificationsLog.set(clientId, nlog);
+      try {
+        await sendExpoPush([...(devices.get(clientId) || [])], notif.title, notif.body, notif.data);
+      } catch (e) {
+        console.error("push error:", e.message);
+      }
+    }
+    res.json({ ok: true, request });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Errore nell'aggiornamento della richiesta" });
   }
 });
 

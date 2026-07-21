@@ -1,0 +1,13 @@
+{
+  "ricciardi-food-agency": [
+    {
+      "id": "seed-r1",
+      "category": "Domanda sui risultati",
+      "message": "Come mai questa settimana ho ricevuto meno contatti del solito?",
+      "status": "completata",
+      "reply": "Abbiamo ottimizzato il pubblico e aggiornato le creatività: da questa settimana i contatti stanno già risalendo 👍",
+      "createdAt": "2026-07-16T10:00:00.000Z",
+      "updatedAt": "2026-07-16T14:20:00.000Z"
+    }
+  ]
+}
