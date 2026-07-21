@@ -3,19 +3,24 @@
 // PERSISTONO. Altrimenti ripiega su store in memoria + file "seed", così i test
 // e lo sviluppo locale funzionano anche senza credenziali.
 
-import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { applicationDefault, cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { readFile } from "fs/promises";
 
 let fsdb = null;
 
 export function initFirestore() {
+  // Due modi di fornire la chiave:
+  //  - FIREBASE_SERVICE_ACCOUNT = JSON della chiave (stringa)
+  //  - GOOGLE_APPLICATION_CREDENTIALS = percorso a un file JSON (es. Secret File su Render)
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (!raw) return null;
+  const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (!raw && !credPath) return null;
   try {
-    const creds = JSON.parse(raw);
     if (!getApps().length) {
-      initializeApp({ credential: cert(creds) });
+      initializeApp({
+        credential: raw ? cert(JSON.parse(raw)) : applicationDefault(),
+      });
     }
     fsdb = getFirestore();
     try {
@@ -188,8 +193,8 @@ export async function updateCreative(clientId, id, patch) {
 
 export async function listCalendar(clientId) {
   if (fsdb) {
-    const snap = await col(clientId, "calendar").orderBy("dataTs", "asc").get();
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const snap = await col(clientId, "calendar").get();
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => a.id.localeCompare(b.id));
   }
   const seed = await loadSeed("calendar-seed.json");
   return seed[clientId] || [];
