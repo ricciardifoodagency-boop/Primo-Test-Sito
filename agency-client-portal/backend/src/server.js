@@ -3,7 +3,13 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { readFile } from "fs/promises";
 
+import * as store from "./store.js";
+
 dotenv.config();
+
+// Attiva Firestore se è configurata la chiave di servizio (FIREBASE_SERVICE_ACCOUNT).
+// Senza, il backend usa store in memoria + seed (utile per test/sviluppo locale).
+store.initFirestore();
 
 const app = express();
 app.use(cors());
@@ -80,39 +86,8 @@ export async function fetchMetaInsights(adAccountId, accessToken, dateOrOpts = "
 }
 
 // --- Notifiche push ----------------------------------------------------------
-// Store in memoria: i token dei dispositivi per cliente e lo storico notifiche
-// generate a runtime. In produzione vanno persistiti su un DB (su Render il
-// filesystem è effimero e si azzera a ogni deploy). Le notifiche "seed" servono
-// a mostrare lo storico anche subito dopo un riavvio.
-const devices = new Map(); // clientId -> Set(pushToken)
-const notificationsLog = new Map(); // clientId -> [notifica, ...] (più recenti in testa)
-
-export async function loadNotificationSeed() {
-  try {
-    const raw = await readFile(
-      new URL("./notifications-seed.json", import.meta.url),
-      "utf-8"
-    );
-    return JSON.parse(raw);
-  } catch {
-    return {};
-  }
-}
-
-// Richieste inviate dal cliente all'agenzia (in memoria + seed di esempio).
-const clientRequests = new Map(); // clientId -> [richiesta, ...]
-
-export async function loadRequestSeed() {
-  try {
-    const raw = await readFile(
-      new URL("./requests-seed.json", import.meta.url),
-      "utf-8"
-    );
-    return JSON.parse(raw);
-  } catch {
-    return {};
-  }
-}
+// I dati (dispositivi, notifiche, richieste, config alert) sono gestiti da
+// ./store.js: Firestore se configurato (persistente), altrimenti in memoria.
 
 // Invia una notifica push ai token indicati tramite l'API push di Expo.
 export async function sendExpoPush(tokens, title, body, data) {
@@ -133,6 +108,24 @@ export async function sendExpoPush(tokens, title, body, data) {
     throw new Error(`Expo push error ${res.status}: ${await res.text()}`);
   }
   return { sent: tokens.length, response: await res.json() };
+}
+
+// Invia un'email all'agenzia (per le nuove richieste dei clienti) via Resend.
+// Attiva solo se sono configurate RESEND_API_KEY e AGENCY_EMAIL; altrimenti no-op.
+export async function sendAgencyEmail(subject, text) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const to = process.env.AGENCY_EMAIL;
+  if (!apiKey || !to) return { skipped: true };
+  const from = process.env.EMAIL_FROM || "Portale Clienti <onboarding@resend.dev>";
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+    body: JSON.stringify({ from, to, subject, text }),
+  });
+  if (!res.ok) {
+    throw new Error(`Resend error ${res.status}: ${await res.text()}`);
+  }
+  return { sent: true };
 }
 
 // Tipi di azione che consideriamo "risultato/conversione", in ordine di priorità.
@@ -219,11 +212,11 @@ export function defaultAlertConfig() {
   return cfg;
 }
 
-const alertConfigs = new Map(); // clientId -> config
-const alertState = new Map(); // clientId -> Set(ruleId attivi) per anti-spam
+const alertState = new Map(); // clientId -> Set(ruleId attivi) per anti-spam (transitorio)
 
-export function getAlertConfig(clientId) {
-  return alertConfigs.get(clientId) || defaultAlertConfig();
+// Config alert del cliente: dallo store (Firestore o memoria) o i default.
+export async function getAlertConfig(clientId) {
+  return (await store.getStoredAlertConfig(clientId)) || defaultAlertConfig();
 }
 
 // Valida e normalizza la config in arrivo dall'app (accetta solo id noti).
@@ -318,12 +311,13 @@ export async function evaluateAlerts(clientId) {
     reachPrev: prev ? num(prev.reach) : 0,
   };
 
-  const triggered = checkAlertRules(getAlertConfig(clientId), metrics);
+  const triggered = checkAlertRules(await getAlertConfig(clientId), metrics);
 
   const active = alertState.get(clientId) || new Set();
   const fresh = triggered.filter((t) => !active.has(t.id));
   alertState.set(clientId, new Set(triggered.map((t) => t.id)));
 
+  const tokens = await store.getDeviceTokens(clientId);
   for (const t of fresh) {
     const notif = {
       id: String(Date.now()) + "-" + t.id,
@@ -332,11 +326,9 @@ export async function evaluateAlerts(clientId) {
       data: { type: "alert", alert: t.id },
       sentAt: new Date().toISOString(),
     };
-    const arr = notificationsLog.get(clientId) || [];
-    arr.unshift(notif);
-    notificationsLog.set(clientId, arr);
+    await store.addNotification(clientId, notif);
     try {
-      await sendExpoPush([...(devices.get(clientId) || [])], t.title, t.body, notif.data);
+      await sendExpoPush(tokens, t.title, t.body, notif.data);
     } catch (e) {
       console.error("push error:", e.message);
     }
@@ -412,9 +404,8 @@ app.post("/devices/:clientId", requireApiKey, async (req, res) => {
     if (!clients[clientId]) {
       return res.status(404).json({ error: "Cliente non trovato" });
     }
-    if (!devices.has(clientId)) devices.set(clientId, new Set());
-    devices.get(clientId).add(token);
-    res.json({ ok: true, registered: devices.get(clientId).size });
+    const registered = await store.addDevice(clientId, token);
+    res.json({ ok: true, registered });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Errore nella registrazione del dispositivo" });
@@ -425,10 +416,7 @@ app.post("/devices/:clientId", requireApiKey, async (req, res) => {
 app.get("/notifications/:clientId", requireApiKey, async (req, res) => {
   const { clientId } = req.params;
   try {
-    const seed = await loadNotificationSeed();
-    const live = notificationsLog.get(clientId) || [];
-    const seeded = seed[clientId] || [];
-    res.json({ notifications: [...live, ...seeded] });
+    res.json({ notifications: await store.listNotifications(clientId) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Errore nel recupero delle notifiche" });
@@ -455,11 +443,9 @@ app.post("/notify/:clientId", requireApiKey, async (req, res) => {
       data: data || null,
       sentAt: new Date().toISOString(),
     };
-    const arr = notificationsLog.get(clientId) || [];
-    arr.unshift(notif);
-    notificationsLog.set(clientId, arr);
+    await store.addNotification(clientId, notif);
 
-    const tokens = [...(devices.get(clientId) || [])];
+    const tokens = await store.getDeviceTokens(clientId);
     let push = { sent: 0 };
     try {
       push = await sendExpoPush(tokens, title, body, data);
@@ -481,7 +467,7 @@ app.get("/alerts/:clientId", requireApiKey, async (req, res) => {
     if (!clients[req.params.clientId]) {
       return res.status(404).json({ error: "Cliente non trovato" });
     }
-    res.json({ defs: ALERT_DEFS, config: getAlertConfig(req.params.clientId) });
+    res.json({ defs: ALERT_DEFS, config: await getAlertConfig(req.params.clientId) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Errore nel recupero degli alert" });
@@ -496,7 +482,7 @@ app.put("/alerts/:clientId", requireApiKey, async (req, res) => {
       return res.status(404).json({ error: "Cliente non trovato" });
     }
     const config = sanitizeAlertConfig(req.body?.config);
-    alertConfigs.set(req.params.clientId, config);
+    await store.setStoredAlertConfig(req.params.clientId, config);
     res.json({ ok: true, config });
   } catch (err) {
     console.error(err);
@@ -522,9 +508,7 @@ app.get("/requests/:clientId", requireApiKey, async (req, res) => {
     if (!clients[clientId]) {
       return res.status(404).json({ error: "Cliente non trovato" });
     }
-    const seed = await loadRequestSeed();
-    const live = clientRequests.get(clientId) || [];
-    res.json({ requests: [...live, ...(seed[clientId] || [])] });
+    res.json({ requests: await store.listRequests(clientId) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Errore nel recupero delle richieste" });
@@ -553,9 +537,17 @@ app.post("/requests/:clientId", requireApiKey, async (req, res) => {
       createdAt: now,
       updatedAt: now,
     };
-    const arr = clientRequests.get(clientId) || [];
-    arr.unshift(request);
-    clientRequests.set(clientId, arr);
+    await store.addRequest(clientId, request);
+
+    // Avvisa l'agenzia via email (best-effort).
+    try {
+      await sendAgencyEmail(
+        `Nuova richiesta — ${clients[clientId].displayName}`,
+        `Categoria: ${request.category}\n\n${request.message}\n\nCliente: ${clients[clientId].displayName}\nData: ${now}`
+      );
+    } catch (e) {
+      console.error("email error:", e.message);
+    }
 
     // Conferma al cliente (storico notifiche + push).
     const notif = {
@@ -565,11 +557,9 @@ app.post("/requests/:clientId", requireApiKey, async (req, res) => {
       data: { type: "request", id: request.id },
       sentAt: now,
     };
-    const nlog = notificationsLog.get(clientId) || [];
-    nlog.unshift(notif);
-    notificationsLog.set(clientId, nlog);
+    await store.addNotification(clientId, notif);
     try {
-      await sendExpoPush([...(devices.get(clientId) || [])], notif.title, notif.body, notif.data);
+      await sendExpoPush(await store.getDeviceTokens(clientId), notif.title, notif.body, notif.data);
     } catch (e) {
       console.error("push error:", e.message);
     }
@@ -587,14 +577,13 @@ app.put("/requests/:clientId/:id", requireApiKey, async (req, res) => {
   const { clientId, id } = req.params;
   const { status, reply } = req.body || {};
   try {
-    const arr = clientRequests.get(clientId) || [];
-    const request = arr.find((r) => r.id === id);
+    const patch = {};
+    if (status) patch.status = status;
+    if (reply !== undefined) patch.reply = reply;
+    const request = await store.updateRequest(clientId, id, patch);
     if (!request) {
       return res.status(404).json({ error: "Richiesta non trovata" });
     }
-    if (status) request.status = status;
-    if (reply !== undefined) request.reply = reply;
-    request.updatedAt = new Date().toISOString();
 
     if (reply) {
       const notif = {
@@ -604,11 +593,9 @@ app.put("/requests/:clientId/:id", requireApiKey, async (req, res) => {
         data: { type: "request", id },
         sentAt: request.updatedAt,
       };
-      const nlog = notificationsLog.get(clientId) || [];
-      nlog.unshift(notif);
-      notificationsLog.set(clientId, nlog);
+      await store.addNotification(clientId, notif);
       try {
-        await sendExpoPush([...(devices.get(clientId) || [])], notif.title, notif.body, notif.data);
+        await sendExpoPush(await store.getDeviceTokens(clientId), notif.title, notif.body, notif.data);
       } catch (e) {
         console.error("push error:", e.message);
       }
@@ -617,6 +604,37 @@ app.put("/requests/:clientId/:id", requireApiKey, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Errore nell'aggiornamento della richiesta" });
+  }
+});
+
+// Creatività da approvare (Approvazioni). L'agenzia le gestisce dalla console
+// Firebase (collezione "creatives"); senza Firestore si usa il seed.
+app.get("/creatives/:clientId", requireApiKey, async (req, res) => {
+  const { clientId } = req.params;
+  try {
+    const clients = await loadClients();
+    if (!clients[clientId]) {
+      return res.status(404).json({ error: "Cliente non trovato" });
+    }
+    res.json({ creatives: await store.listCreatives(clientId) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Errore nel recupero delle creatività" });
+  }
+});
+
+// Contenuti programmati (Calendario).
+app.get("/calendar/:clientId", requireApiKey, async (req, res) => {
+  const { clientId } = req.params;
+  try {
+    const clients = await loadClients();
+    if (!clients[clientId]) {
+      return res.status(404).json({ error: "Cliente non trovato" });
+    }
+    res.json({ calendar: await store.listCalendar(clientId) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Errore nel recupero del calendario" });
   }
 });
 

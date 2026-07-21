@@ -1,0 +1,28 @@
+{
+  "ricciardi-food-agency": [
+    {
+      "id": "cr1",
+      "titolo": "Reel — Piatto della settimana",
+      "formato": "Reel 9:16",
+      "pianificata": "Mar 22 lug",
+      "stato": "in_attesa",
+      "mediaUrl": ""
+    },
+    {
+      "id": "cr2",
+      "titolo": "Carosello — Nuovo menù estivo",
+      "formato": "Carosello",
+      "pianificata": "Gio 24 lug",
+      "stato": "in_attesa",
+      "mediaUrl": ""
+    },
+    {
+      "id": "cr3",
+      "titolo": "Storia — Offerta aperitivo",
+      "formato": "Story 9:16",
+      "pianificata": "Ven 25 lug",
+      "stato": "in_attesa",
+      "mediaUrl": ""
+    }
+  ]
+}
