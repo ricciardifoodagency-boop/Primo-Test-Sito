@@ -10,17 +10,40 @@ import { useEffect, useRef, useState } from 'react';
 // nell'export web. Servito dal backend sotto /app, il file è a /app/intro.mp4.
 const SOURCE = '/app/intro.mp4';
 
+// Velocità di riproduzione dell'intro (1 = normale). A 1.5x un video di 25s
+// dura ~17s. Le clip NON vengono tagliate: scorre solo più veloce.
+const PLAYBACK_RATE = 1.5;
+
 export function IntroVideo({ onFinish }: { onFinish: () => void }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const startupRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [muted, setMuted] = useState(true);
 
   useEffect(() => {
-    // Alcuni browser vogliono la chiamata esplicita a play().
-    videoRef.current?.play?.().catch(() => {});
-    // Sicurezza: se il video non parte/carica, dopo 12s mostra comunque l'app.
-    const t = setTimeout(onFinish, 12000);
-    return () => clearTimeout(t);
+    const v = videoRef.current;
+    if (v) {
+      v.playbackRate = PLAYBACK_RATE;
+      // Alcuni browser vogliono la chiamata esplicita a play().
+      v.play?.().catch(() => {});
+    }
+    // Sicurezza: SOLO se il video non parte proprio (asset non caricato) dopo
+    // 8s mostro comunque l'app. Il timer viene annullato appena parte.
+    startupRef.current = setTimeout(onFinish, 8000);
+    return () => {
+      if (startupRef.current) clearTimeout(startupRef.current);
+    };
   }, [onFinish]);
+
+  // Imposta la velocità (alcuni browser la resettano al load) e annulla il
+  // timer di sicurezza appena il video è realmente in riproduzione.
+  const handlePlaying = () => {
+    const v = videoRef.current;
+    if (v) v.playbackRate = PLAYBACK_RATE;
+    if (startupRef.current) {
+      clearTimeout(startupRef.current);
+      startupRef.current = null;
+    }
+  };
 
   return (
     <div
@@ -46,6 +69,8 @@ export function IntroVideo({ onFinish }: { onFinish: () => void }) {
         autoPlay
         muted={muted}
         playsInline
+        onLoadedMetadata={handlePlaying}
+        onPlaying={handlePlaying}
         onEnded={onFinish}
         onError={onFinish}
         // Il video non supera mai lo schermo visibile in nessuna direzione e
