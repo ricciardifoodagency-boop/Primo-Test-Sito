@@ -17,7 +17,21 @@ const PLAYBACK_RATE = 1.5;
 export function IntroVideo({ onFinish }: { onFinish: () => void }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const startupRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const endRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [muted, setMuted] = useState(true);
+
+  const clearTimers = () => {
+    if (startupRef.current) clearTimeout(startupRef.current);
+    if (endRef.current) clearTimeout(endRef.current);
+    startupRef.current = null;
+    endRef.current = null;
+  };
+
+  // Chiude l'intro una volta sola e libera i timer.
+  const finish = () => {
+    clearTimers();
+    onFinish();
+  };
 
   useEffect(() => {
     const v = videoRef.current;
@@ -29,19 +43,31 @@ export function IntroVideo({ onFinish }: { onFinish: () => void }) {
     // Sicurezza: SOLO se il video non parte proprio (asset non caricato) dopo
     // 8s mostro comunque l'app. Il timer viene annullato appena parte.
     startupRef.current = setTimeout(onFinish, 8000);
-    return () => {
-      if (startupRef.current) clearTimeout(startupRef.current);
-    };
-  }, [onFinish]);
+    return clearTimers;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Imposta la velocità (alcuni browser la resettano al load) e annulla il
-  // timer di sicurezza appena il video è realmente in riproduzione.
-  const handlePlaying = () => {
+  // Quando conosco la durata: imposto la velocità, annullo il timer di avvio e
+  // programmo la chiusura sulla durata REALE (l'evento onEnded non è affidabile
+  // su tutti i browser, quindi non mi affido solo a quello).
+  const handleLoadedMeta = () => {
     const v = videoRef.current;
-    if (v) v.playbackRate = PLAYBACK_RATE;
+    if (!v) return;
+    v.playbackRate = PLAYBACK_RATE;
     if (startupRef.current) {
       clearTimeout(startupRef.current);
       startupRef.current = null;
+    }
+    const secs = Number.isFinite(v.duration) && v.duration > 0 ? v.duration : 25;
+    if (endRef.current) clearTimeout(endRef.current);
+    endRef.current = setTimeout(finish, (secs / PLAYBACK_RATE) * 1000 + 500);
+  };
+
+  // Ridondanza: se la riproduzione supera la durata, chiudo comunque.
+  const handleTimeUpdate = () => {
+    const v = videoRef.current;
+    if (v && Number.isFinite(v.duration) && v.currentTime >= v.duration - 0.2) {
+      finish();
     }
   };
 
@@ -69,10 +95,11 @@ export function IntroVideo({ onFinish }: { onFinish: () => void }) {
         autoPlay
         muted={muted}
         playsInline
-        onLoadedMetadata={handlePlaying}
-        onPlaying={handlePlaying}
-        onEnded={onFinish}
-        onError={onFinish}
+        onLoadedMetadata={handleLoadedMeta}
+        onPlaying={handleLoadedMeta}
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={finish}
+        onError={finish}
         // Il video non supera mai lo schermo visibile in nessuna direzione e
         // mantiene le proporzioni: si vede sempre tutto, senza tagli né zoom.
         style={{
@@ -107,7 +134,7 @@ export function IntroVideo({ onFinish }: { onFinish: () => void }) {
 
       {/* Salta intro */}
       <button
-        onClick={onFinish}
+        onClick={finish}
         aria-label="Salta l'intro"
         style={{
           position: 'absolute',
