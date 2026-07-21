@@ -1,0 +1,58 @@
+{
+  "ricciardi-food-agency": {
+    "refreshedAt": "2026-07-20T21:40:00.000Z",
+    "competitors": [
+      {
+        "name": "Pienissimo",
+        "pageId": "1423161797900947",
+        "activeAds": 209,
+        "ads": [
+          {
+            "title": "Food Marketing Festival — Palacongressi di Riccione, 29 Settembre",
+            "startTime": 1784575071,
+            "snapshotUrl": "https://www.facebook.com/ads/library/?id=2100329777184610"
+          }
+        ]
+      },
+      {
+        "name": "RistoratoreTop",
+        "pageId": "193732410819098",
+        "activeAds": 47,
+        "ads": [
+          {
+            "title": "Se cerchi solo post, non siamo l'azienda giusta",
+            "startTime": 1784573546,
+            "snapshotUrl": "https://www.facebook.com/ads/library/?id=1044883941434047"
+          },
+          {
+            "title": "Pubblicare di più non basta",
+            "startTime": 1784568910,
+            "snapshotUrl": "https://www.facebook.com/ads/library/?id=1596410895329404"
+          },
+          {
+            "title": "La sala conta più dei like",
+            "startTime": 1784570178,
+            "snapshotUrl": "https://www.facebook.com/ads/library/?id=3001460630203241"
+          }
+        ]
+      },
+      {
+        "name": "Ristorante Sold Out",
+        "pageId": "103700435516843",
+        "activeAds": 21,
+        "ads": [
+          {
+            "title": "Aumenta i Clienti nel tuo Locale",
+            "startTime": 1784513013,
+            "snapshotUrl": "https://www.facebook.com/ads/library/?id=1377075337706424"
+          },
+          {
+            "title": "Aumenta il fatturato del tuo locale",
+            "startTime": 1784378787,
+            "snapshotUrl": "https://www.facebook.com/ads/library/?id=2801281046912400"
+          }
+        ]
+      }
+    ]
+  }
+}

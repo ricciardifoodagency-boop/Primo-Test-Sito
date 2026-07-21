@@ -55,3 +55,35 @@ export async function fetchKpi(range: RangeKey = "30d"): Promise<Kpi> {
 
   return res.json() as Promise<Kpi>;
 }
+
+// --- Competitor (Meta Ad Library, snapshot on-demand) ------------------------
+
+export type CompetitorAd = {
+  title: string | null;
+  startTime: number; // unix (secondi)
+  snapshotUrl: string;
+};
+
+export type Competitor = {
+  name: string;
+  pageId: string;
+  activeAds: number;
+  ads: CompetitorAd[];
+};
+
+export type CompetitorSnapshot = {
+  refreshedAt: string;
+  competitors: Competitor[];
+};
+
+export async function fetchCompetitors(): Promise<CompetitorSnapshot> {
+  const res = await fetch(`${backendUrl}/competitor/${clientId}`, {
+    headers: { "x-api-key": extra.apiKey ?? "" },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Errore recupero competitor: ${res.status}`);
+  }
+
+  return res.json() as Promise<CompetitorSnapshot>;
+}

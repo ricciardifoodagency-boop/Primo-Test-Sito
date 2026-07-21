@@ -29,6 +29,9 @@ export default function AppTabs() {
           <TabTrigger name="calendario" href="/calendario" asChild>
             <TabButton>Calendario</TabButton>
           </TabTrigger>
+          <TabTrigger name="competitor" href="/competitor" asChild>
+            <TabButton>Competitor</TabButton>
+          </TabTrigger>
         </CustomTabList>
       </TabList>
     </Tabs>

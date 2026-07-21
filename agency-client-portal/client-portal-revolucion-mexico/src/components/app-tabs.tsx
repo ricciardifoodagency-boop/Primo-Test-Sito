@@ -35,6 +35,10 @@ export default function AppTabs() {
         name="calendario"
         options={{ title: 'Calendario', tabBarIcon: () => <TabEmoji emoji="🗓️" /> }}
       />
+      <Tabs.Screen
+        name="competitor"
+        options={{ title: 'Competitor', tabBarIcon: () => <TabEmoji emoji="🕵️" /> }}
+      />
     </Tabs>
   );
 }

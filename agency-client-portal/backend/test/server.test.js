@@ -141,4 +141,24 @@ test("endpoint HTTP end-to-end", async (t) => {
   assert.equal(noToken.status, 500);
   const body = await noToken.json();
   assert.match(body.error, /Token mancante/);
+
+  // competitor: senza chiave -> 401
+  const compNoAuth = await fetch(`${base}/competitor/ricciardi-food-agency`);
+  assert.equal(compNoAuth.status, 401);
+
+  // competitor: cliente reale -> 200 con lo snapshot
+  const comp = await fetch(`${base}/competitor/ricciardi-food-agency`, {
+    headers: { "x-api-key": KEY },
+  });
+  assert.equal(comp.status, 200);
+  const compBody = await comp.json();
+  assert.ok(Array.isArray(compBody.competitors));
+  assert.ok(compBody.competitors.length >= 1);
+  assert.ok(typeof compBody.competitors[0].activeAds === "number");
+
+  // competitor: cliente inesistente -> 404
+  const compNotFound = await fetch(`${base}/competitor/cliente-inesistente`, {
+    headers: { "x-api-key": KEY },
+  });
+  assert.equal(compNotFound.status, 404);
 });

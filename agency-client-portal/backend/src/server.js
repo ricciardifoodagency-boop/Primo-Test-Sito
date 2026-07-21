@@ -32,6 +32,18 @@ export async function loadClients() {
   return JSON.parse(raw);
 }
 
+// Snapshot dei competitor (inserzioni attive dalla Meta Ad Library). Vengono
+// aggiornati "on-demand" dall'agenzia e serviti così come sono: l'endpoint
+// diretto ads_archive di Meta richiede un'autorizzazione speciale dell'app, per
+// questo NON interroghiamo la Ad Library in tempo reale dal backend.
+export async function loadCompetitorSnapshots() {
+  const raw = await readFile(
+    new URL("./competitor-snapshots.json", import.meta.url),
+    "utf-8"
+  );
+  return JSON.parse(raw);
+}
+
 // Periodi selezionabili dall'app. Mappano una chiave semplice al date_preset di
 // Meta e all'etichetta mostrata all'utente.
 export const RANGES = {
@@ -158,6 +170,27 @@ app.get("/kpi/:clientId", requireApiKey, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Errore nel recupero dei dati" });
+  }
+});
+
+app.get("/competitor/:clientId", requireApiKey, async (req, res) => {
+  const { clientId } = req.params;
+  try {
+    const clients = await loadClients();
+    if (!clients[clientId]) {
+      return res.status(404).json({ error: "Cliente non trovato" });
+    }
+    const snapshots = await loadCompetitorSnapshots();
+    const snapshot = snapshots[clientId];
+    if (!snapshot) {
+      return res
+        .status(404)
+        .json({ error: "Nessuno snapshot competitor per questo cliente" });
+    }
+    res.json(snapshot);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Errore nel recupero dei competitor" });
   }
 });
 

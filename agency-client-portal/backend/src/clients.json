@@ -4,6 +4,11 @@
     "metaAdAccountId": "781675410281419",
     "metaAccessTokenEnvVar": "META_TOKEN_RICCIARDI_FOOD_AGENCY",
     "resultActionType": "lead",
-    "resultLabel": "Contatti"
+    "resultLabel": "Contatti",
+    "competitors": [
+      { "name": "Pienissimo", "pageId": "1423161797900947" },
+      { "name": "RistoratoreTop", "pageId": "193732410819098" },
+      { "name": "Ristorante Sold Out", "pageId": "103700435516843" }
+    ]
   }
 }
