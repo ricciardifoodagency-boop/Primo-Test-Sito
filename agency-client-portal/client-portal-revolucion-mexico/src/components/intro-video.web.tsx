@@ -26,7 +26,12 @@ export function IntroVideo({ onFinish }: { onFinish: () => void }) {
     <div
       style={{
         position: 'fixed',
-        inset: 0,
+        top: 0,
+        left: 0,
+        // svh = altezza VISIBILE (tiene conto della barra del browser su mobile),
+        // così il video non finisce mai sotto il bordo dello schermo.
+        width: '100vw',
+        height: '100svh',
         background: '#000',
         zIndex: 1000,
         display: 'flex',
@@ -43,8 +48,8 @@ export function IntroVideo({ onFinish }: { onFinish: () => void }) {
         playsInline
         onEnded={onFinish}
         onError={onFinish}
-        // Il video non supera mai lo schermo in nessuna direzione e mantiene
-        // le proporzioni: si vede sempre tutto, senza tagli né zoom.
+        // Il video non supera mai lo schermo visibile in nessuna direzione e
+        // mantiene le proporzioni: si vede sempre tutto, senza tagli né zoom.
         style={{
           maxWidth: '100%',
           maxHeight: '100%',
