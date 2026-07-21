@@ -32,6 +32,8 @@ export function IntroVideo({ onFinish }: { onFinish: () => void }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        padding: 12,
+        boxSizing: 'border-box',
       }}>
       <video
         ref={videoRef}
@@ -41,7 +43,16 @@ export function IntroVideo({ onFinish }: { onFinish: () => void }) {
         playsInline
         onEnded={onFinish}
         onError={onFinish}
-        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+        // Il video non supera mai lo schermo in nessuna direzione e mantiene
+        // le proporzioni: si vede sempre tutto, senza tagli né zoom.
+        style={{
+          maxWidth: '100%',
+          maxHeight: '100%',
+          width: 'auto',
+          height: 'auto',
+          objectFit: 'contain',
+          display: 'block',
+        }}
       />
 
       {/* Attiva/disattiva audio */}
