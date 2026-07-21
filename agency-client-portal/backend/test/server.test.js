@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { app, buildKpiPayload, extractResults } from "../src/server.js";
+import { app, buildKpiPayload, extractResults, resolveRange } from "../src/server.js";
 
 // --- Unit test: estrazione risultati (conversioni) da Meta ---------------------
 
@@ -35,6 +35,9 @@ test("buildKpiPayload trasforma l'insight Meta nel payload per l'app", () => {
     spend: "2095.31",
     impressions: "155185",
     cpm: "13.50",
+    reach: "65361",
+    clicks: "1462",
+    ctr: "0.94",
     actions: [
       { action_type: "landing_page_view", value: "4100" },
       { action_type: "lead", value: "48" },
@@ -44,7 +47,8 @@ test("buildKpiPayload trasforma l'insight Meta nel payload per l'app", () => {
   const payload = buildKpiPayload(
     "ricciardi-food-agency",
     { displayName: "Stefano Ricciardi Food Agency" },
-    insights
+    insights,
+    "ultimi 7 giorni"
   );
 
   assert.equal(payload.clientId, "ricciardi-food-agency");
@@ -54,8 +58,23 @@ test("buildKpiPayload trasforma l'insight Meta nel payload per l'app", () => {
   assert.equal(payload.results, 48);
   // Costo per risultato = 2095.31 / 48 ≈ 43.65
   assert.equal(Math.round(payload.costPerResult * 100) / 100, 43.65);
-  assert.equal(payload.periodo, "ultimi 30 giorni");
+  assert.equal(payload.reach, 65361);
+  assert.equal(payload.clicks, 1462);
+  assert.equal(payload.cpm, 13.5);
+  assert.equal(payload.ctr, 0.94);
+  // il periodo passato come argomento viene riflesso nel payload
+  assert.equal(payload.periodo, "ultimi 7 giorni");
   assert.ok(typeof payload.aggiornatoIl === "string");
+});
+
+test("resolveRange accetta i periodi validi e ripiega sul default", () => {
+  assert.equal(resolveRange("7d"), "7d");
+  assert.equal(resolveRange("30d"), "30d");
+  assert.equal(resolveRange("90d"), "90d");
+  assert.equal(resolveRange("month"), "month");
+  // valori non validi o assenti -> default 30d
+  assert.equal(resolveRange("qualsiasi"), "30d");
+  assert.equal(resolveRange(undefined), "30d");
 });
 
 test("buildKpiPayload: costPerResult è null quando non ci sono risultati", () => {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,29 +14,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { brandColor, fetchKpi, type Kpi } from '@/lib/api';
-
-function formatInt(n: number): string {
-  return Math.round(n).toLocaleString('it-IT');
-}
-
-function formatEuro(n: number): string {
-  return (
-    '€ ' +
-    n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  );
-}
-
-function formatUpdatedAt(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString('it-IT', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+import { brandColor, fetchKpi, RANGES, type Kpi, type RangeKey } from '@/lib/api';
+import { formatEuro, formatInt, formatUpdatedAt } from '@/lib/format';
+import { downloadReport } from '@/lib/report';
 
 function KpiCard({ label, value }: { label: string; value: string }) {
   return (
@@ -50,17 +31,19 @@ function KpiCard({ label, value }: { label: string; value: string }) {
 
 export default function DashboardScreen() {
   const theme = useTheme();
+  const [range, setRange] = useState<RangeKey>('30d');
   const [kpi, setKpi] = useState<Kpi | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reporting, setReporting] = useState(false);
 
-  const load = useCallback(async (isRefresh = false) => {
+  const load = useCallback(async (r: RangeKey, isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
     try {
-      const data = await fetchKpi();
+      const data = await fetchKpi(r);
       setKpi(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Errore sconosciuto');
@@ -71,19 +54,20 @@ export default function DashboardScreen() {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    load(range);
+  }, [range, load]);
 
-  if (loading) {
-    return (
-      <ThemedView style={styles.centered}>
-        <ActivityIndicator size="large" color={brandColor} />
-        <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
-          Carico i dati…
-        </ThemedText>
-      </ThemedView>
-    );
-  }
+  const onReport = useCallback(async () => {
+    if (!kpi) return;
+    setReporting(true);
+    try {
+      await downloadReport(kpi, brandColor);
+    } catch (e) {
+      Alert.alert('Report non riuscito', e instanceof Error ? e.message : 'Riprova più tardi.');
+    } finally {
+      setReporting(false);
+    }
+  }, [kpi]);
 
   return (
     <ThemedView style={styles.container}>
@@ -93,7 +77,7 @@ export default function DashboardScreen() {
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => load(true)}
+              onRefresh={() => load(range, true)}
               tintColor={brandColor}
             />
           }>
@@ -105,16 +89,47 @@ export default function DashboardScreen() {
             KPI Meta Ads · {kpi?.periodo ?? 'ultimi 30 giorni'}
           </ThemedText>
 
-          {error ? (
+          {/* Selettore periodo */}
+          <View style={styles.periodRow}>
+            {RANGES.map((r) => {
+              const active = r.key === range;
+              return (
+                <Pressable
+                  key={r.key}
+                  onPress={() => setRange(r.key)}
+                  style={[
+                    styles.pill,
+                    { borderColor: theme.backgroundElement },
+                    active && { backgroundColor: brandColor, borderColor: brandColor },
+                  ]}>
+                  <ThemedText
+                    type="small"
+                    themeColor={active ? undefined : 'textSecondary'}
+                    style={active ? styles.pillTextActive : undefined}>
+                    {r.label}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {loading ? (
+            <View style={styles.loadingBox}>
+              <ActivityIndicator size="large" color={brandColor} />
+              <ThemedText type="small" themeColor="textSecondary" style={styles.loadingText}>
+                Carico i dati…
+              </ThemedText>
+            </View>
+          ) : error ? (
             <ThemedView type="backgroundElement" style={styles.errorBox}>
               <ThemedText type="smallBold">Impossibile caricare i dati</ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={styles.errorMsg}>
                 {error}
               </ThemedText>
               <Pressable
-                onPress={() => load()}
+                onPress={() => load(range)}
                 style={[styles.retryBtn, { backgroundColor: brandColor }]}>
-                <ThemedText type="smallBold" style={styles.retryText}>
+                <ThemedText type="smallBold" style={styles.textLight}>
                   Riprova
                 </ThemedText>
               </Pressable>
@@ -132,6 +147,20 @@ export default function DashboardScreen() {
                 />
                 <KpiCard label="Impression" value={formatInt(kpi?.impressions ?? 0)} />
               </View>
+
+              {/* Bottone report */}
+              <Pressable
+                onPress={onReport}
+                disabled={reporting}
+                style={[styles.reportBtn, { backgroundColor: brandColor }, reporting && styles.reportBtnDisabled]}>
+                {reporting ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <ThemedText type="smallBold" style={styles.textLight}>
+                    📄  Scarica report ({kpi?.periodo ?? 'periodo'})
+                  </ThemedText>
+                )}
+              </Pressable>
 
               {kpi?.aggiornatoIl && (
                 <ThemedText
@@ -152,15 +181,33 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
-  centeredText: { marginTop: Spacing.two },
   scroll: { padding: Spacing.four, gap: Spacing.three, paddingBottom: Spacing.six },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   brandDot: { width: 14, height: 14, borderRadius: 7 },
+  periodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two, marginTop: Spacing.one },
+  pill: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one + 2,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  pillTextActive: { color: '#ffffff', fontWeight: '700' },
+  loadingBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.six, gap: Spacing.two },
+  loadingText: { marginTop: Spacing.two },
   grid: { flexDirection: 'row', gap: Spacing.three, marginTop: Spacing.two },
   card: { flex: 1, borderRadius: Spacing.three, padding: Spacing.four, gap: Spacing.two },
   cardLabel: { textTransform: 'uppercase', letterSpacing: 0.5 },
   cardValue: { fontSize: 30, fontWeight: '700', lineHeight: 36 },
+  reportBtn: {
+    marginTop: Spacing.three,
+    borderRadius: Spacing.three,
+    paddingVertical: Spacing.three,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  reportBtnDisabled: { opacity: 0.7 },
+  textLight: { color: '#ffffff' },
   updated: {
     marginTop: Spacing.three,
     paddingTop: Spacing.three,
@@ -179,5 +226,4 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     borderRadius: Spacing.two,
   },
-  retryText: { color: '#ffffff' },
 });

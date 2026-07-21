@@ -32,11 +32,26 @@ export async function loadClients() {
   return JSON.parse(raw);
 }
 
-export async function fetchMetaInsights(adAccountId, accessToken) {
-  // Endpoint Meta Marketing API: insights aggregati ultimi 30 giorni.
+// Periodi selezionabili dall'app. Mappano una chiave semplice al date_preset di
+// Meta e all'etichetta mostrata all'utente.
+export const RANGES = {
+  "7d": { preset: "last_7d", label: "ultimi 7 giorni" },
+  "30d": { preset: "last_30d", label: "ultimi 30 giorni" },
+  "90d": { preset: "last_90d", label: "ultimi 90 giorni" },
+  month: { preset: "this_month", label: "questo mese" },
+};
+const DEFAULT_RANGE = "30d";
+
+// Normalizza il parametro `range` in ingresso: se non valido, usa il default.
+export function resolveRange(range) {
+  return RANGES[range] ? range : DEFAULT_RANGE;
+}
+
+export async function fetchMetaInsights(adAccountId, accessToken, datePreset = "last_30d") {
+  // Endpoint Meta Marketing API: insights aggregati sul periodo scelto.
   // Documentazione: https://developers.facebook.com/docs/marketing-api/insights
-  const fields = "spend,actions,impressions,cpm";
-  const url = `https://graph.facebook.com/v20.0/act_${adAccountId}/insights?fields=${fields}&date_preset=last_30d&access_token=${accessToken}`;
+  const fields = "spend,actions,impressions,cpm,reach,clicks,ctr";
+  const url = `https://graph.facebook.com/v20.0/act_${adAccountId}/insights?fields=${fields}&date_preset=${datePreset}&access_token=${accessToken}`;
 
   const res = await fetch(url);
   if (!res.ok) {
@@ -71,26 +86,38 @@ export function extractResults(actions) {
   return 0;
 }
 
+function num(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
 // Trasforma la risposta grezza di Meta nel payload compatto che l'app mobile consuma.
-export function buildKpiPayload(clientId, client, insights) {
-  const spend = insights ? Number(insights.spend) : 0;
+export function buildKpiPayload(clientId, client, insights, periodo = "ultimi 30 giorni") {
+  const spend = insights ? num(insights.spend) : 0;
   const results = extractResults(insights?.actions);
   return {
     clientId,
     displayName: client.displayName,
     spend,
-    impressions: insights ? Number(insights.impressions) : 0,
+    impressions: insights ? num(insights.impressions) : 0,
     results,
     // Costo per risultato (CPA): speso / risultati. null quando non ci sono
     // risultati, per evitare divisioni per zero e mostrare "—" nell'app.
     costPerResult: results > 0 ? spend / results : null,
-    periodo: "ultimi 30 giorni",
+    // Metriche aggiuntive (usate soprattutto nel report).
+    reach: insights ? num(insights.reach) : 0,
+    clicks: insights ? num(insights.clicks) : 0,
+    cpm: insights ? num(insights.cpm) : 0,
+    ctr: insights ? num(insights.ctr) : 0,
+    periodo,
     aggiornatoIl: new Date().toISOString(),
   };
 }
 
 app.get("/kpi/:clientId", requireApiKey, async (req, res) => {
   const { clientId } = req.params;
+  const range = resolveRange(req.query.range);
+  const { preset, label } = RANGES[range];
 
   try {
     const clients = await loadClients();
@@ -99,7 +126,9 @@ app.get("/kpi/:clientId", requireApiKey, async (req, res) => {
       return res.status(404).json({ error: "Cliente non trovato" });
     }
 
-    const cached = cache.get(clientId);
+    // La cache tiene conto del periodo: chiavi diverse per range diversi.
+    const cacheKey = `${clientId}:${range}`;
+    const cached = cache.get(cacheKey);
     if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
       return res.json(cached.data);
     }
@@ -111,10 +140,10 @@ app.get("/kpi/:clientId", requireApiKey, async (req, res) => {
       });
     }
 
-    const insights = await fetchMetaInsights(client.metaAdAccountId, accessToken);
-    const payload = buildKpiPayload(clientId, client, insights);
+    const insights = await fetchMetaInsights(client.metaAdAccountId, accessToken, preset);
+    const payload = buildKpiPayload(clientId, client, insights, label);
 
-    cache.set(clientId, { data: payload, fetchedAt: Date.now() });
+    cache.set(cacheKey, { data: payload, fetchedAt: Date.now() });
     res.json(payload);
   } catch (err) {
     console.error(err);
