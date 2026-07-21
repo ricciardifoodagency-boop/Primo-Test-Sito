@@ -654,6 +654,23 @@ app.get("/calendar/:clientId", requireApiKey, async (req, res) => {
   }
 });
 
+// TEMPORANEO: diagnostica connessione Firestore.
+app.get("/debug/firestore", requireApiKey, async (req, res) => {
+  const usingFirestore = store.usingFirestore();
+  try {
+    const creatives = await store.listCreatives("ricciardi-food-agency");
+    res.json({ usingFirestore, ok: true, creatives: creatives.length });
+  } catch (err) {
+    res.json({
+      usingFirestore,
+      ok: false,
+      error: err.message,
+      code: err.code,
+      stack: String(err.stack || "").split("\n").slice(0, 5),
+    });
+  }
+});
+
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 
 // Avvia il server solo quando il file è eseguito direttamente (`node src/server.js`),
