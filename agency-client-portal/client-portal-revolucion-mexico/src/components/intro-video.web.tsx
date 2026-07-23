@@ -1,75 +1,47 @@
-// TEMPORANEO — intro "demo" all'apertura dell'app, versione WEB.
-// I browser bloccano l'autoplay con audio: il video parte da solo MUTO e mostra
-// un pulsante per attivare l'audio. C'è anche "Salta ›". Si chiude a fine video.
-// Da rimuovere quando non serve più: togliere il render in src/app/_layout.tsx e
-// cancellare questo file, intro-video.tsx e assets/videos/intro.mp4.
+// TEMPORANEO — intro "slideshow" all'apertura dell'app, versione WEB.
+// Mostra 5 immagini a rotazione, 3 secondi ciascuna (15s totali), poi apre
+// l'app da sola. C'è anche "Salta ›". Da rimuovere quando non serve più:
+// togliere il render in src/app/_layout.tsx, cancellare questo file,
+// intro-video.tsx e la cartella public/intro/.
 
 import { useEffect, useRef, useState } from 'react';
 
-// Il video sta nella cartella public/ del progetto: Expo la copia così com'è
-// nell'export web. Servito dal backend sotto /app, il file è a /app/intro.mp4.
-const SOURCE = '/app/intro.mp4';
-
-// Velocità di riproduzione dell'intro (1 = normale). A 1.5x un video di 25s
-// dura ~17s. Le clip NON vengono tagliate: scorre solo più veloce.
-const PLAYBACK_RATE = 1.5;
+// Le immagini stanno nella cartella public/ del progetto: Expo la copia così
+// com'è nell'export web. Servite dal backend sotto /app -> /app/intro/N.png
+const IMAGES = [1, 2, 3, 4, 5].map((n) => `/app/intro/${n}.png`);
+const SECONDS_PER_IMAGE = 3; // 5 immagini x 3s = 15s totali
 
 export function IntroVideo({ onFinish }: { onFinish: () => void }) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const startupRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const endRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [muted, setMuted] = useState(true);
+  const [idx, setIdx] = useState(0);
+  const doneRef = useRef(false);
 
-  const clearTimers = () => {
-    if (startupRef.current) clearTimeout(startupRef.current);
-    if (endRef.current) clearTimeout(endRef.current);
-    startupRef.current = null;
-    endRef.current = null;
-  };
-
-  // Chiude l'intro una volta sola e libera i timer.
+  // Chiude l'intro una sola volta.
   const finish = () => {
-    clearTimers();
+    if (doneRef.current) return;
+    doneRef.current = true;
     onFinish();
   };
 
   useEffect(() => {
-    const v = videoRef.current;
-    if (v) {
-      v.playbackRate = PLAYBACK_RATE;
-      // Alcuni browser vogliono la chiamata esplicita a play().
-      v.play?.().catch(() => {});
-    }
-    // Sicurezza: SOLO se il video non parte proprio (asset non caricato) dopo
-    // 8s mostro comunque l'app. Il timer viene annullato appena parte.
-    startupRef.current = setTimeout(onFinish, 8000);
-    return clearTimers;
+    // Precarico le immagini per transizioni fluide (solo browser).
+    IMAGES.forEach((src) => {
+      const im = new window.Image();
+      im.src = src;
+    });
+    // Avanza di un'immagine ogni 3s; dopo l'ultima, apre l'app.
+    let i = 0;
+    const id = setInterval(() => {
+      i += 1;
+      if (i >= IMAGES.length) {
+        clearInterval(id);
+        finish();
+      } else {
+        setIdx(i);
+      }
+    }, SECONDS_PER_IMAGE * 1000);
+    return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Quando conosco la durata: imposto la velocità, annullo il timer di avvio e
-  // programmo la chiusura sulla durata REALE (l'evento onEnded non è affidabile
-  // su tutti i browser, quindi non mi affido solo a quello).
-  const handleLoadedMeta = () => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.playbackRate = PLAYBACK_RATE;
-    if (startupRef.current) {
-      clearTimeout(startupRef.current);
-      startupRef.current = null;
-    }
-    const secs = Number.isFinite(v.duration) && v.duration > 0 ? v.duration : 25;
-    if (endRef.current) clearTimeout(endRef.current);
-    endRef.current = setTimeout(finish, (secs / PLAYBACK_RATE) * 1000 + 500);
-  };
-
-  // Ridondanza: se la riproduzione supera la durata, chiudo comunque.
-  const handleTimeUpdate = () => {
-    const v = videoRef.current;
-    if (v && Number.isFinite(v.duration) && v.currentTime >= v.duration - 0.2) {
-      finish();
-    }
-  };
 
   return (
     <div
@@ -78,7 +50,7 @@ export function IntroVideo({ onFinish }: { onFinish: () => void }) {
         top: 0,
         left: 0,
         // svh = altezza VISIBILE (tiene conto della barra del browser su mobile),
-        // così il video non finisce mai sotto il bordo dello schermo.
+        // così l'immagine non finisce mai sotto il bordo dello schermo.
         width: '100vw',
         height: '100svh',
         background: '#000',
@@ -89,48 +61,26 @@ export function IntroVideo({ onFinish }: { onFinish: () => void }) {
         padding: 12,
         boxSizing: 'border-box',
       }}>
-      <video
-        ref={videoRef}
-        src={SOURCE}
-        autoPlay
-        muted={muted}
-        playsInline
-        onLoadedMetadata={handleLoadedMeta}
-        onPlaying={handleLoadedMeta}
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={finish}
-        onError={finish}
-        // Il video non supera mai lo schermo visibile in nessuna direzione e
-        // mantiene le proporzioni: si vede sempre tutto, senza tagli né zoom.
-        style={{
-          maxWidth: '100%',
-          maxHeight: '100%',
-          width: 'auto',
-          height: 'auto',
-          objectFit: 'contain',
-          display: 'block',
-        }}
-      />
-
-      {/* Attiva/disattiva audio */}
-      <button
-        onClick={() => setMuted((m) => !m)}
-        aria-label={muted ? 'Attiva audio' : 'Disattiva audio'}
-        style={{
-          position: 'absolute',
-          left: 16,
-          bottom: 20,
-          border: 'none',
-          borderRadius: 999,
-          padding: '9px 16px',
-          fontSize: 14,
-          fontWeight: 600,
-          color: '#fff',
-          background: 'rgba(0,0,0,0.55)',
-          cursor: 'pointer',
-        }}>
-        {muted ? '🔇 Attiva audio' : '🔊 Audio'}
-      </button>
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        {IMAGES.map((src, i) => (
+          // Immagini sovrapposte, dissolvenza incrociata sull'immagine attiva.
+          // objectFit contain: si vede sempre tutta, senza tagli né zoom.
+          <img
+            key={src}
+            src={src}
+            alt=""
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              opacity: i === idx ? 1 : 0,
+              transition: 'opacity 0.5s ease',
+            }}
+          />
+        ))}
+      </div>
 
       {/* Salta intro */}
       <button
