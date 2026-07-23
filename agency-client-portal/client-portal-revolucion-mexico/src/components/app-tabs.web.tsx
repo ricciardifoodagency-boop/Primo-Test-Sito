@@ -13,31 +13,26 @@ import { ThemedView } from './themed-view';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { brandColor } from '@/lib/api';
+import { useRole } from '@/lib/role-context';
+import { TAB_META, visibleTabs } from '@/lib/role';
 
 export default function AppTabs() {
+  const { role } = useRole();
+  const tabs = visibleTabs(role);
+
   return (
     <Tabs>
       <TabSlot style={{ height: '100%' }} />
       <TabList asChild>
         <CustomTabList>
-          <TabTrigger name="index" href="/" asChild>
-            <TabButton>Dashboard</TabButton>
-          </TabTrigger>
-          <TabTrigger name="approvazioni" href="/approvazioni" asChild>
-            <TabButton>Approvazioni</TabButton>
-          </TabTrigger>
-          <TabTrigger name="calendario" href="/calendario" asChild>
-            <TabButton>Calendario</TabButton>
-          </TabTrigger>
-          <TabTrigger name="competitor" href="/competitor" asChild>
-            <TabButton>Competitor</TabButton>
-          </TabTrigger>
-          <TabTrigger name="notifiche" href="/notifiche" asChild>
-            <TabButton>Notifiche</TabButton>
-          </TabTrigger>
-          <TabTrigger name="richieste" href="/richieste" asChild>
-            <TabButton>Richieste</TabButton>
-          </TabTrigger>
+          {tabs.map((name) => {
+            const meta = TAB_META[name];
+            return (
+              <TabTrigger key={name} name={name} href={meta.href} asChild>
+                <TabButton>{meta.title}</TabButton>
+              </TabTrigger>
+            );
+          })}
         </CustomTabList>
       </TabList>
     </Tabs>
@@ -63,7 +58,7 @@ export function CustomTabList(props: TabListProps) {
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
 
   return (
-    <View {...props} style={styles.tabListContainer}>
+    <View {...props} nativeID="tabbar" style={styles.tabListContainer}>
       <ThemedView type="backgroundElement" style={styles.innerContainer}>
         <View style={styles.brand}>
           <View style={[styles.brandDot, { backgroundColor: brandColor }]} />
@@ -93,6 +88,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: Spacing.two,
     maxWidth: MaxContentWidth,
+    flexWrap: 'wrap',
   },
   brand: {
     flexDirection: 'row',

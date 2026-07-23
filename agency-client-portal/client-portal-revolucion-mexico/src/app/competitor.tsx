@@ -15,6 +15,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { brandColor, fetchCompetitors, type CompetitorSnapshot } from '@/lib/api';
+import { useTabGuard } from '@/lib/use-tab-guard';
 
 function formatDate(unixSeconds: number): string {
   const d = new Date(unixSeconds * 1000);
@@ -28,7 +29,13 @@ function formatRefreshed(iso: string): string {
   return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
 }
 
-export default function CompetitorScreen() {
+export default function CompetitorRoute() {
+  const guard = useTabGuard('competitor');
+  if (guard) return guard;
+  return <CompetitorScreen />;
+}
+
+function CompetitorScreen() {
   const theme = useTheme();
   const [snapshot, setSnapshot] = useState<CompetitorSnapshot | null>(null);
   const [loading, setLoading] = useState(true);

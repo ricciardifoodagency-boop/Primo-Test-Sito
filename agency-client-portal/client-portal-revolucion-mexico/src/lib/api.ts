@@ -8,12 +8,14 @@ const extra = (Constants.expoConfig?.extra ?? {}) as {
   backendUrl?: string;
   apiKey?: string;
   brandColor?: string;
+  rolePin?: string;
 };
 
 export const clientId = extra.clientId ?? "";
 export const backendUrl = extra.backendUrl ?? "";
 export const brandColor = extra.brandColor ?? "#C1121F";
 export const apiKey = extra.apiKey ?? "";
+export const rolePin = extra.rolePin ?? "4444";
 
 // Periodi selezionabili nella dashboard. La chiave viene passata al backend
 // (?range=...), l'etichetta è per i pulsanti.

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,7 +16,8 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { brandColor } from '@/lib/api';
-import { CATEGORIES, fetchRequests, sendRequest, type ClientRequest } from '@/lib/requests';
+import { useRole } from '@/lib/role-context';
+import { categoriesFor, fetchRequests, sendRequest, type ClientRequest } from '@/lib/requests';
 
 const STATUS_LABEL: Record<string, string> = {
   inviata: 'Inviata',
@@ -37,27 +38,47 @@ function formatWhen(iso: string): string {
 
 export default function RichiesteScreen() {
   const theme = useTheme();
+  const { config } = useRole();
+  // Destinazione della sezione "Richieste" in base al ruolo.
+  const stream = config?.requestStream ?? 'agency';
+  const toDeveloper = stream === 'developer';
+  const categories = useMemo(() => categoriesFor(stream), [stream]);
+
   const [items, setItems] = useState<ClientRequest[]>([]);
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [category, setCategory] = useState(categories[0]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-    setError(null);
-    try {
-      setItems(await fetchRequests());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Errore sconosciuto');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+  // Ticket tecnico (solo Ristoratore): richiesta al developer separata.
+  const showTicket = !!config?.hasTicketButton;
+  const [ticketOpen, setTicketOpen] = useState(false);
+  const [ticketCat, setTicketCat] = useState(categoriesFor('developer')[0]);
+  const [ticketMsg, setTicketMsg] = useState('');
+  const [ticketSending, setTicketSending] = useState(false);
+
+  const load = useCallback(
+    async (isRefresh = false) => {
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+      setError(null);
+      try {
+        setItems(await fetchRequests(stream));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Errore sconosciuto');
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [stream]
+  );
+
+  useEffect(() => {
+    setCategory(categories[0]);
+  }, [categories]);
 
   useEffect(() => {
     load();
@@ -70,16 +91,37 @@ export default function RichiesteScreen() {
     }
     setSending(true);
     try {
-      const created = await sendRequest(category, message.trim());
+      const created = await sendRequest(category, message.trim(), stream);
       setItems((prev) => [created, ...prev]);
       setMessage('');
-      Alert.alert('Richiesta inviata', "L'agenzia ti risponderà a breve.");
+      Alert.alert(
+        'Richiesta inviata',
+        toDeveloper ? 'Il developer la prenderà in carico a breve.' : "L'agenzia ti risponderà a breve."
+      );
     } catch (e) {
       Alert.alert('Errore', e instanceof Error ? e.message : 'Riprova più tardi.');
     } finally {
       setSending(false);
     }
-  }, [category, message]);
+  }, [category, message, stream, toDeveloper]);
+
+  const onSendTicket = useCallback(async () => {
+    if (!ticketMsg.trim()) {
+      Alert.alert('Scrivi il ticket', 'Descrivi il problema prima di inviare.');
+      return;
+    }
+    setTicketSending(true);
+    try {
+      await sendRequest(ticketCat, ticketMsg.trim(), 'developer');
+      setTicketMsg('');
+      setTicketOpen(false);
+      Alert.alert('Ticket inviato 🎫', 'Il developer riceverà la segnalazione tecnica.');
+    } catch (e) {
+      Alert.alert('Errore', e instanceof Error ? e.message : 'Riprova più tardi.');
+    } finally {
+      setTicketSending(false);
+    }
+  }, [ticketCat, ticketMsg]);
 
   if (loading) {
     return (
@@ -98,15 +140,17 @@ export default function RichiesteScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={brandColor} />
           }>
-          <ThemedText type="subtitle">Richieste</ThemedText>
+          <ThemedText type="subtitle">{toDeveloper ? 'Richieste al developer' : 'Richieste'}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            Scrivi all'agenzia direttamente da qui.
+            {toDeveloper
+              ? 'Scrivi al developer per problemi tecnici o richieste sull’app.'
+              : "Scrivi all'agenzia direttamente da qui."}
           </ThemedText>
 
           {/* Form nuova richiesta */}
           <ThemedView type="backgroundElement" style={styles.form}>
             <View style={styles.chips}>
-              {CATEGORIES.map((c) => {
+              {categories.map((c) => {
                 const active = c === category;
                 return (
                   <Pressable
@@ -131,7 +175,7 @@ export default function RichiesteScreen() {
             <TextInput
               value={message}
               onChangeText={setMessage}
-              placeholder="Scrivi la tua richiesta…"
+              placeholder={toDeveloper ? 'Descrivi la richiesta al developer…' : 'Scrivi la tua richiesta…'}
               placeholderTextColor={theme.textSecondary}
               multiline
               style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
@@ -145,14 +189,75 @@ export default function RichiesteScreen() {
                 <ActivityIndicator color="#ffffff" />
               ) : (
                 <ThemedText type="smallBold" style={styles.textLight}>
-                  Invia richiesta
+                  {toDeveloper ? 'Invia al developer' : 'Invia richiesta'}
                 </ThemedText>
               )}
             </Pressable>
           </ThemedView>
 
+          {/* Ticket tecnico al developer (solo Ristoratore) */}
+          {showTicket ? (
+            <ThemedView type="backgroundElement" style={styles.form}>
+              <Pressable onPress={() => setTicketOpen((v) => !v)} style={styles.ticketHead}>
+                <ThemedText type="smallBold">🎫 Invia ticket al developer</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {ticketOpen ? '▲' : '▼'}
+                </ThemedText>
+              </Pressable>
+              <ThemedText type="small" themeColor="textSecondary">
+                Un problema con l’app? Segnalalo al supporto tecnico (diverso dalle richieste all’agenzia).
+              </ThemedText>
+              {ticketOpen ? (
+                <>
+                  <View style={styles.chips}>
+                    {categoriesFor('developer').map((c) => {
+                      const active = c === ticketCat;
+                      return (
+                        <Pressable
+                          key={c}
+                          onPress={() => setTicketCat(c)}
+                          style={[
+                            styles.chip,
+                            { borderColor: theme.backgroundSelected },
+                            active && { backgroundColor: brandColor, borderColor: brandColor },
+                          ]}>
+                          <ThemedText
+                            type="small"
+                            themeColor={active ? undefined : 'textSecondary'}
+                            style={active ? styles.chipTextActive : undefined}>
+                            {c}
+                          </ThemedText>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <TextInput
+                    value={ticketMsg}
+                    onChangeText={setTicketMsg}
+                    placeholder="Descrivi il problema tecnico…"
+                    placeholderTextColor={theme.textSecondary}
+                    multiline
+                    style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
+                  />
+                  <Pressable
+                    onPress={onSendTicket}
+                    disabled={ticketSending}
+                    style={[styles.sendBtn, { backgroundColor: brandColor }, ticketSending && styles.disabled]}>
+                    {ticketSending ? (
+                      <ActivityIndicator color="#ffffff" />
+                    ) : (
+                      <ThemedText type="smallBold" style={styles.textLight}>
+                        Invia ticket
+                      </ThemedText>
+                    )}
+                  </Pressable>
+                </>
+              ) : null}
+            </ThemedView>
+          ) : null}
+
           <ThemedText type="smallBold" themeColor="textSecondary" style={styles.histTitle}>
-            LE TUE RICHIESTE
+            {toDeveloper ? 'RICHIESTE AL DEVELOPER' : 'LE TUE RICHIESTE'}
           </ThemedText>
 
           {error ? (
@@ -178,7 +283,7 @@ export default function RichiesteScreen() {
                 {r.reply && (
                   <View style={[styles.reply, { borderLeftColor: brandColor }]}>
                     <ThemedText type="small" themeColor="textSecondary" style={styles.replyLabel}>
-                      Risposta agenzia
+                      {toDeveloper ? 'Risposta developer' : 'Risposta agenzia'}
                     </ThemedText>
                     <ThemedText type="small">{r.reply}</ThemedText>
                   </View>
@@ -201,6 +306,7 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: Spacing.four, gap: Spacing.three, paddingBottom: Spacing.six },
   form: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.three },
+  ticketHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: Spacing.three, paddingVertical: Spacing.one + 1 },
   chipTextActive: { color: '#ffffff', fontWeight: '700' },

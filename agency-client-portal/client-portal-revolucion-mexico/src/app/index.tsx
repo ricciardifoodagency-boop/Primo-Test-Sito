@@ -17,6 +17,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { brandColor, fetchKpi, RANGES, type Kpi, type RangeKey } from '@/lib/api';
 import { formatEuro, formatInt, formatPct, formatUpdatedAt } from '@/lib/format';
 import { downloadReport } from '@/lib/report';
+import { useTabGuard } from '@/lib/use-tab-guard';
 
 function KpiCard({ label, value }: { label: string; value: string }) {
   return (
@@ -29,7 +30,13 @@ function KpiCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function DashboardScreen() {
+export default function DashboardRoute() {
+  const guard = useTabGuard('index');
+  if (guard) return guard;
+  return <DashboardScreen />;
+}
+
+function DashboardScreen() {
   const theme = useTheme();
   const [range, setRange] = useState<RangeKey>('30d');
   const [kpi, setKpi] = useState<Kpi | null>(null);

@@ -117,11 +117,10 @@ export async function sendExpoPush(tokens, title, body, data) {
   return { sent: tokens.length, response: await res.json() };
 }
 
-// Invia un'email all'agenzia (per le nuove richieste dei clienti) via Resend.
-// Attiva solo se sono configurate RESEND_API_KEY e AGENCY_EMAIL; altrimenti no-op.
-export async function sendAgencyEmail(subject, text) {
+// Invia un'email di notifica via Resend a un indirizzo specifico.
+// Attiva solo se sono configurate RESEND_API_KEY e il destinatario; altrimenti no-op.
+async function sendEmailTo(to, subject, text) {
   const apiKey = process.env.RESEND_API_KEY;
-  const to = process.env.AGENCY_EMAIL;
   if (!apiKey || !to) return { skipped: true };
   const from = process.env.EMAIL_FROM || "Portale Clienti <onboarding@resend.dev>";
   const res = await fetch("https://api.resend.com/emails", {
@@ -133,6 +132,18 @@ export async function sendAgencyEmail(subject, text) {
     throw new Error(`Resend error ${res.status}: ${await res.text()}`);
   }
   return { sent: true };
+}
+
+// Notifica all'agenzia (richieste "all'agenzia" dei clienti).
+export async function sendAgencyEmail(subject, text) {
+  return sendEmailTo(process.env.AGENCY_EMAIL, subject, text);
+}
+
+// Notifica al developer (richieste "al developer" e ticket). Se DEVELOPER_EMAIL
+// non è configurata ripiega sull'indirizzo dell'agenzia, così l'avviso arriva
+// comunque (il testo completo resta consultabile in app).
+export async function sendDeveloperEmail(subject, text) {
+  return sendEmailTo(process.env.DEVELOPER_EMAIL || process.env.AGENCY_EMAIL, subject, text);
 }
 
 // Tipi di azione che consideriamo "risultato/conversione", in ordine di priorità.
@@ -510,22 +521,35 @@ app.post("/alerts/:clientId/run", requireApiKey, async (req, res) => {
 // Storico richieste del cliente (live + seed), più recenti in testa.
 app.get("/requests/:clientId", requireApiKey, async (req, res) => {
   const { clientId } = req.params;
+  // Filtro opzionale per destinazione: "agency" (richieste all'agenzia) o
+  // "developer" (richieste al developer / ticket). Le richieste legacy senza
+  // campo "stream" sono trattate come "agency".
+  const stream = req.query.stream;
   try {
     const clients = await loadClients();
     if (!clients[clientId]) {
       return res.status(404).json({ error: "Cliente non trovato" });
     }
-    res.json({ requests: await store.listRequests(clientId) });
+    let requests = await store.listRequests(clientId);
+    if (stream === "agency" || stream === "developer") {
+      requests = requests.filter((r) => (r.stream || "agency") === stream);
+    }
+    res.json({ requests });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Errore nel recupero delle richieste" });
   }
 });
 
-// Il cliente invia una nuova richiesta all'agenzia.
+// Un utente invia una nuova richiesta. Il campo "stream" decide la destinazione:
+//  - "agency"    -> richiesta all'agenzia (default, comportamento storico)
+//  - "developer" -> richiesta al developer / ticket tecnico
+// In entrambi i casi il testo completo resta consultabile in app; via email
+// parte solo un avviso al destinatario giusto.
 app.post("/requests/:clientId", requireApiKey, async (req, res) => {
   const { clientId } = req.params;
   const { category, message } = req.body || {};
+  const stream = req.body?.stream === "developer" ? "developer" : "agency";
   if (!message || !String(message).trim()) {
     return res.status(400).json({ error: "Il messaggio è obbligatorio" });
   }
@@ -539,6 +563,7 @@ app.post("/requests/:clientId", requireApiKey, async (req, res) => {
       id: String(Date.now()),
       category: category || "Richiesta",
       message: String(message).trim(),
+      stream,
       status: "inviata",
       reply: null,
       createdAt: now,
@@ -546,22 +571,28 @@ app.post("/requests/:clientId", requireApiKey, async (req, res) => {
     };
     await store.addRequest(clientId, request);
 
-    // Avvisa l'agenzia via email (best-effort).
+    // Avvisa il destinatario via email (best-effort): solo un avviso, il
+    // contenuto vero resta in app.
+    const isDev = stream === "developer";
+    const label = isDev ? "richiesta al developer" : "richiesta";
     try {
-      await sendAgencyEmail(
-        `Nuova richiesta — ${clients[clientId].displayName}`,
-        `Categoria: ${request.category}\n\n${request.message}\n\nCliente: ${clients[clientId].displayName}\nData: ${now}`
+      const notifyFn = isDev ? sendDeveloperEmail : sendAgencyEmail;
+      await notifyFn(
+        `Nuova ${label} — ${clients[clientId].displayName}`,
+        `Categoria: ${request.category}\nDestinazione: ${isDev ? "Developer" : "Agenzia"}\n\n${request.message}\n\nCliente: ${clients[clientId].displayName}\nData: ${now}\n\n(Apri il portale per gestirla)`
       );
     } catch (e) {
       console.error("email error:", e.message);
     }
 
-    // Conferma al cliente (storico notifiche + push).
+    // Conferma a chi invia (storico notifiche + push).
     const notif = {
       id: String(Date.now()) + "-req",
-      title: "Richiesta ricevuta ✅",
-      body: "Grazie! L'agenzia ti risponderà a breve.",
-      data: { type: "request", id: request.id },
+      title: isDev ? "Richiesta al developer inviata ✅" : "Richiesta ricevuta ✅",
+      body: isDev
+        ? "Il developer la prenderà in carico a breve."
+        : "Grazie! L'agenzia ti risponderà a breve.",
+      data: { type: "request", id: request.id, stream },
       sentAt: now,
     };
     await store.addNotification(clientId, notif);

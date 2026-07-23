@@ -19,5 +19,9 @@ export default ({ config }) => ({
     // PORTAL_API_KEY del backend.
     apiKey: process.env.PORTAL_API_KEY || "",
     brandColor: "#C1121F",
+    // PIN che sblocca la scelta dei ruoli "interni" (Developer/Gestore/Addetto)
+    // al primo avvio. Il Ristoratore/Negoziante è libero. Sovrascrivibile con la
+    // variabile d'ambiente ROLE_PIN. NB: è una barriera "morbida" lato client.
+    rolePin: process.env.ROLE_PIN || "4444",
   },
 });
