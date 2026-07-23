@@ -6,6 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import * as store from "./store.js";
+import * as drive from "./drive.js";
 
 dotenv.config();
 
@@ -645,8 +646,10 @@ app.put("/requests/:clientId/:id", requireApiKey, async (req, res) => {
   }
 });
 
-// Creatività da approvare (Approvazioni). L'agenzia le gestisce dalla console
-// Firebase (collezione "creatives"); senza Firestore si usa il seed.
+// Creatività da approvare (Approvazioni).
+// Se è configurato Google Drive (DRIVE_FOLDER_ID o DRIVE_MOCK), i video vengono
+// letti dalle sottocartelle del Drive e divisi per gruppo. Altrimenti si usano
+// le creatività da Firestore/seed (comportamento storico).
 app.get("/creatives/:clientId", requireApiKey, async (req, res) => {
   const { clientId } = req.params;
   try {
@@ -654,7 +657,26 @@ app.get("/creatives/:clientId", requireApiKey, async (req, res) => {
     if (!clients[clientId]) {
       return res.status(404).json({ error: "Cliente non trovato" });
     }
-    res.json({ creatives: await store.listCreatives(clientId) });
+
+    if (drive.driveConfigured()) {
+      const [files, statuses] = await Promise.all([
+        drive.listDriveCreatives(),
+        store.getCreativeStatuses(clientId),
+      ]);
+      const creatives = files.map((f) => ({
+        ...f,
+        // Stato deciso nell'app (approvata); i rifiutati sono già spariti dal Drive.
+        stato: statuses[f.id]?.stato || "in_attesa",
+      }));
+      return res.json({ creatives, driveUrl: drive.driveFolderUrl(), source: "drive" });
+    }
+
+    // Fallback: creatività da Firestore/seed (aggiungo un gruppo di default).
+    const list = (await store.listCreatives(clientId)).map((c) => ({
+      gruppo: c.gruppo || "Contenuti",
+      ...c,
+    }));
+    res.json({ creatives: list, driveUrl: drive.driveFolderUrl(), source: "seed" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Errore nel recupero delle creatività" });
@@ -662,13 +684,71 @@ app.get("/creatives/:clientId", requireApiKey, async (req, res) => {
 });
 
 // Il cliente approva/rifiuta una creatività.
+// Rifiuto: serve un motivo (obbligatorio); il video viene cestinato su Drive e
+// parte una notifica all'Addetto contenuti (+ email di avviso).
 app.put("/creatives/:clientId/:id", requireApiKey, async (req, res) => {
   const { clientId, id } = req.params;
-  const { stato } = req.body || {};
+  const { stato, motivo } = req.body || {};
   if (!["in_attesa", "approvata", "rifiutata"].includes(stato)) {
     return res.status(400).json({ error: "stato non valido" });
   }
   try {
+    const clients = await loadClients();
+    if (!clients[clientId]) {
+      return res.status(404).json({ error: "Cliente non trovato" });
+    }
+    const onDrive = drive.driveConfigured();
+
+    if (stato === "rifiutata") {
+      if (!motivo || !String(motivo).trim()) {
+        return res.status(400).json({ error: "Il motivo del rifiuto è obbligatorio" });
+      }
+      const reason = String(motivo).trim();
+
+      // Cestina il video su Drive (se attivo).
+      if (onDrive) {
+        try {
+          await drive.trashDriveFile(id);
+        } catch (e) {
+          console.error("drive trash error:", e.message);
+        }
+      } else {
+        await store.updateCreative(clientId, id, { stato: "rifiutata" });
+      }
+
+      // Notifica all'Addetto contenuti (in-app, con targetRole) + email.
+      const now = new Date().toISOString();
+      const notif = {
+        id: String(Date.now()) + "-rej",
+        title: "Video rifiutato ❌",
+        body: `Motivo: ${reason}`,
+        data: { type: "creative_rejected", id, motivo: reason },
+        targetRole: "addetto",
+        sentAt: now,
+      };
+      await store.addNotification(clientId, notif);
+      try {
+        await sendExpoPush(await store.getDeviceTokens(clientId), notif.title, notif.body, notif.data);
+      } catch (e) {
+        console.error("push error:", e.message);
+      }
+      try {
+        await sendAgencyEmail(
+          `Video rifiutato — ${clients[clientId].displayName}`,
+          `Un video è stato rifiutato nell'app.\n\nMotivo: ${reason}\nID file: ${id}\nData: ${now}`
+        );
+      } catch (e) {
+        console.error("email error:", e.message);
+      }
+
+      return res.json({ ok: true, creative: { id, stato: "rifiutata", motivo: reason } });
+    }
+
+    // Approvazione (o reset): registra lo stato.
+    if (onDrive) {
+      await store.setCreativeStatus(clientId, id, { stato });
+      return res.json({ ok: true, creative: { id, stato } });
+    }
     const updated = await store.updateCreative(clientId, id, { stato });
     res.json({ ok: true, creative: updated });
   } catch (err) {

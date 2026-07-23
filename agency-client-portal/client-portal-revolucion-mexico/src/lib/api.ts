@@ -100,23 +100,35 @@ export type Creative = {
   formato: string;
   pianificata: string;
   stato: CreativeStatus;
+  gruppo?: string;
   mediaUrl?: string;
+  thumbnail?: string | null;
 };
 
-export async function fetchCreatives(): Promise<Creative[]> {
+export type CreativesResult = {
+  creatives: Creative[];
+  driveUrl: string | null;
+};
+
+export async function fetchCreatives(): Promise<CreativesResult> {
   const res = await fetch(`${backendUrl}/creatives/${clientId}`, {
     headers: { 'x-api-key': apiKey },
   });
   if (!res.ok) throw new Error(`Errore recupero creatività: ${res.status}`);
-  const json = (await res.json()) as { creatives: Creative[] };
-  return json.creatives;
+  const json = (await res.json()) as { creatives: Creative[]; driveUrl?: string | null };
+  return { creatives: json.creatives, driveUrl: json.driveUrl ?? null };
 }
 
-export async function updateCreativeStatus(id: string, stato: CreativeStatus): Promise<void> {
+// stato 'rifiutata' richiede un motivo (obbligatorio lato backend).
+export async function updateCreativeStatus(
+  id: string,
+  stato: CreativeStatus,
+  motivo?: string,
+): Promise<void> {
   const res = await fetch(`${backendUrl}/creatives/${clientId}/${id}`, {
     method: 'PUT',
     headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
-    body: JSON.stringify({ stato }),
+    body: JSON.stringify({ stato, motivo }),
   });
   if (!res.ok) throw new Error(`Errore aggiornamento creatività: ${res.status}`);
 }
@@ -146,6 +158,8 @@ export type AppNotification = {
   body: string;
   data?: unknown;
   sentAt: string;
+  // Se presente, la notifica è destinata solo a quel ruolo (es. "addetto").
+  targetRole?: string;
 };
 
 // Registra il token push del dispositivo sul backend (best-effort).

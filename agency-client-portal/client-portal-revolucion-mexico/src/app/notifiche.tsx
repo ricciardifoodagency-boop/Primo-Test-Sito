@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -14,6 +14,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { brandColor, fetchNotifications, type AppNotification } from '@/lib/api';
+import { useRole } from '@/lib/role-context';
 
 function formatWhen(iso: string): string {
   const d = new Date(iso);
@@ -28,17 +29,25 @@ function formatWhen(iso: string): string {
 
 export default function NotificheScreen() {
   const router = useRouter();
-  const [items, setItems] = useState<AppNotification[]>([]);
+  const { role } = useRole();
+  const [all, setAll] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Mostra le notifiche generali (senza targetRole) + quelle destinate al
+  // ruolo corrente (es. i rifiuti video vanno all'Addetto contenuti).
+  const items = useMemo(
+    () => all.filter((n) => !n.targetRole || n.targetRole === role),
+    [all, role],
+  );
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
     try {
-      setItems(await fetchNotifications());
+      setAll(await fetchNotifications());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Errore sconosciuto');
     } finally {

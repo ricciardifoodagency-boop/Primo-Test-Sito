@@ -199,3 +199,31 @@ export async function listCalendar(clientId) {
   const seed = await loadSeed("calendar-seed.json");
   return seed[clientId] || [];
 }
+
+// --- Stato dei video Drive (Approvazioni) --------------------------------------
+// I video vivono su Google Drive; qui teniamo solo lo stato deciso nell'app
+// (es. "approvata"). I rifiutati vengono cestinati su Drive e spariscono, quindi
+// non serve tracciarli.
+const memCreativeStatus = new Map(); // clientId -> Map(fileId -> {stato, updatedAt})
+
+export async function getCreativeStatuses(clientId) {
+  if (fsdb) {
+    const snap = await col(clientId, "creativeStatus").get();
+    const out = {};
+    snap.docs.forEach((d) => (out[d.id] = d.data()));
+    return out;
+  }
+  const m = memCreativeStatus.get(clientId) || new Map();
+  return Object.fromEntries(m);
+}
+
+export async function setCreativeStatus(clientId, fileId, data) {
+  const value = { ...data, updatedAt: new Date().toISOString() };
+  if (fsdb) {
+    await col(clientId, "creativeStatus").doc(fileId).set(value, { merge: true });
+    return value;
+  }
+  if (!memCreativeStatus.has(clientId)) memCreativeStatus.set(clientId, new Map());
+  memCreativeStatus.get(clientId).set(fileId, value);
+  return value;
+}
