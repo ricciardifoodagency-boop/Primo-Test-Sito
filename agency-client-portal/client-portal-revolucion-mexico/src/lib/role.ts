@@ -10,7 +10,7 @@ export type Role = 'ristoratore' | 'gestore' | 'addetto' | 'developer';
 // Nomi delle rotte/tab dell'app (corrispondono ai file in src/app/).
 export type TabName =
   | 'index'
-  | 'approvazioni'
+  | 'contenuti'
   | 'calendario'
   | 'competitor'
   | 'notifiche'
@@ -21,7 +21,7 @@ export type TabName =
 // Metadati per la tab bar (titolo web + emoji nativo + href web).
 export const TAB_META: Record<TabName, { title: string; emoji: string; href: string }> = {
   index: { title: 'Dashboard', emoji: '📊', href: '/' },
-  approvazioni: { title: 'Approvazioni', emoji: '✅', href: '/approvazioni' },
+  contenuti: { title: 'Approvazioni', emoji: '✅', href: '/contenuti' },
   calendario: { title: 'Calendario', emoji: '🗓️', href: '/calendario' },
   competitor: { title: 'Competitor', emoji: '🕵️', href: '/competitor' },
   notifiche: { title: 'Notifiche', emoji: '🔔', href: '/notifiche' },
@@ -34,7 +34,7 @@ export const TAB_META: Record<TabName, { title: string; emoji: string; href: str
 // pertinenti al ruolo).
 export const ALL_TAB_NAMES: TabName[] = [
   'index',
-  'approvazioni',
+  'contenuti',
   'calendario',
   'competitor',
   'notifiche',
@@ -64,7 +64,7 @@ export type RoleConfig = {
 
 const ALL_TABS: TabName[] = [
   'index',
-  'approvazioni',
+  'contenuti',
   'calendario',
   'competitor',
   'notifiche',
@@ -100,7 +100,7 @@ export const ROLES: Record<Role, RoleConfig> = {
     emoji: '📦',
     description: 'Approvazioni, Calendario, Notifiche e Richieste (al developer).',
     internal: true,
-    tabs: ['approvazioni', 'calendario', 'notifiche', 'richieste'],
+    tabs: ['contenuti', 'calendario', 'notifiche', 'richieste'],
     requestStream: 'developer',
     hasTicketButton: false,
     hasDeveloperInbox: false,
@@ -125,7 +125,7 @@ export const ROLE_ORDER: Role[] = ['ristoratore', 'gestore', 'addetto', 'develop
 // la home, così il web non naviga via da '/' mentre è aperta la scelta ruolo.
 export function visibleTabs(role: Role | null): TabName[] {
   if (!role) {
-    return ['index', 'approvazioni', 'calendario', 'competitor', 'notifiche', 'richieste', 'impostazioni'];
+    return ['index', 'contenuti', 'calendario', 'competitor', 'notifiche', 'richieste', 'impostazioni'];
   }
   return [...ROLES[role].tabs, 'impostazioni'];
 }
