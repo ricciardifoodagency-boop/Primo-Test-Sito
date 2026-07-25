@@ -6,12 +6,12 @@ import {
   TabTriggerSlotProps,
   TabListProps,
 } from 'expo-router/ui';
-import { Pressable, useColorScheme, View, StyleSheet } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { brandColor } from '@/lib/api';
 import { useRole } from '@/lib/role-context';
 import { TAB_META, visibleTabs } from '@/lib/role';
@@ -22,7 +22,9 @@ export default function AppTabs() {
 
   return (
     <Tabs>
-      <TabSlot style={{ height: '100%' }} />
+      {/* paddingTop lascia spazio alla barra flottante in alto, così il
+          contenuto non ci finisce sotto. */}
+      <TabSlot style={{ flex: 1, paddingTop: 60 }} />
       <TabList asChild>
         <CustomTabList>
           {tabs.map((name) => {
@@ -41,7 +43,7 @@ export default function AppTabs() {
 
 export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
   return (
-    <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
+    <Pressable {...props} style={({ pressed }) => [styles.tab, pressed && styles.pressed]}>
       <ThemedView
         type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
         style={styles.tabButtonView}>
@@ -54,17 +56,31 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
 }
 
 export function CustomTabList(props: TabListProps) {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const { width } = useWindowDimensions();
+  // Su schermi stretti (mobile) la barra diventa a tutta larghezza e le voci
+  // scorrono orizzontalmente, così non escono mai dallo schermo.
+  const narrow = width < 700;
 
   return (
     <View {...props} nativeID="tabbar" style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <View style={styles.brand}>
+      <ThemedView
+        type="backgroundElement"
+        style={[styles.innerContainer, narrow ? styles.innerNarrow : styles.innerWide]}>
+        {narrow ? (
           <View style={[styles.brandDot, { backgroundColor: brandColor }]} />
-          <ThemedText type="smallBold">Ricciardi Food Agency</ThemedText>
-        </View>
-        {props.children}
+        ) : (
+          <View style={styles.brand}>
+            <View style={[styles.brandDot, { backgroundColor: brandColor }]} />
+            <ThemedText type="smallBold">Ricciardi Food Agency</ThemedText>
+          </View>
+        )}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollRow}>
+          {props.children}
+        </ScrollView>
       </ThemedView>
     </View>
   );
@@ -73,33 +89,41 @@ export function CustomTabList(props: TabListProps) {
 const styles = StyleSheet.create({
   tabListContainer: {
     position: 'absolute',
+    top: 0,
     width: '100%',
-    padding: Spacing.three,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: Spacing.two,
+    paddingTop: Spacing.two,
     flexDirection: 'row',
+    justifyContent: 'center',
   },
   innerContainer: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    borderRadius: Spacing.five,
     flexDirection: 'row',
     alignItems: 'center',
-    flexGrow: 1,
+    borderRadius: Spacing.four,
     gap: Spacing.two,
-    maxWidth: MaxContentWidth,
-    flexWrap: 'wrap',
+    paddingVertical: Spacing.two,
   },
+  innerWide: {
+    flexGrow: 1,
+    maxWidth: MaxContentWidth,
+    paddingHorizontal: Spacing.five,
+  },
+  innerNarrow: {
+    flexGrow: 1,
+    maxWidth: '100%',
+    paddingHorizontal: Spacing.three,
+  },
+  scroll: { flexGrow: 0, flexShrink: 1 },
+  scrollRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingRight: Spacing.two },
   brand: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    marginRight: 'auto',
+    marginRight: Spacing.two,
   },
   brandDot: { width: 12, height: 12, borderRadius: 6 },
-  pressed: {
-    opacity: 0.7,
-  },
+  pressed: { opacity: 0.7 },
+  tab: { flexShrink: 0 },
   tabButtonView: {
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.three,
